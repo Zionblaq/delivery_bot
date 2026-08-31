@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"path": "../../../../c_c++/Just _trial"
+		},
+		{
+			"name": "Class",
+			"path": "../../Class"
+		},
+		{
+			"name": "Testing projects",
+			"path": "../../Testing projects"
+		},
+		{
+			"name": "Service bot",
+			"path": "../../Service bot"
+		},
+		{
+			"name": "Delivery_Bot",
+			"path": ".."
+		},
+		{
+			"name": "My robot",
+			"path": "../../My robot"
+		}
+	],
+	"settings": {}
+}
