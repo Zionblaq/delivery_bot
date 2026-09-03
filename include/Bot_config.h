@@ -61,7 +61,7 @@
 #define SERVO_MAX_ANGLE     270
 #define SERVO_CLOSED_ANGLE  270
 #define SERVO_OPEN_ANGLE    90
-#define UNLOCK_HOLD_MS      (2 * 60 * 1000)
+#define UNLOCK_HOLD_MS      (2 * 30 * 1000)
 
 /* ===================== MOTOR SPEEDS ===================== */
 #define SPEED_FORWARD     300
