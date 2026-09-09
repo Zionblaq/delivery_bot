@@ -88,30 +88,20 @@ void motor_backward(int speed) {
     motor_set_right_speed(speed);
 }
 
-// FIX: both sides now drive FORWARD (was: left backward, right forward
-// - a pivot spin, not a turn). "speed" is treated as the outer
-// (faster) wheel's speed; the inner wheel is slowed proportionally,
-// so the robot curves instead of spinning or stopping.
-#define TURN_INNER_RATIO   40   // inner wheel runs at this % of outer wheel speed - tune on the real robot
-
 void motor_turn_left(int speed) {
-
-    gpio_set_level(PIN_MOTOR_IN1, 1);   // left = FORWARD (inner wheel)
-    gpio_set_level(PIN_MOTOR_IN2, 0);
-    gpio_set_level(PIN_MOTOR_IN3, 0);   // right = FORWARD (outer wheel)
+    gpio_set_level(PIN_MOTOR_IN1, 0);
+    gpio_set_level(PIN_MOTOR_IN2, 1);
+    gpio_set_level(PIN_MOTOR_IN3, 1);
     gpio_set_level(PIN_MOTOR_IN4, 0);
-
     motor_set_left_speed(speed);
     motor_set_right_speed(speed);
 }
 
 void motor_turn_right(int speed) {
-
-    gpio_set_level(PIN_MOTOR_IN1, 0);   // left = FORWARD (outer wheel)
+    gpio_set_level(PIN_MOTOR_IN1, 1);
     gpio_set_level(PIN_MOTOR_IN2, 0);
-    gpio_set_level(PIN_MOTOR_IN3, 1);   // right = FORWARD (inner wheel)
-    gpio_set_level(PIN_MOTOR_IN4, 0);
-
+    gpio_set_level(PIN_MOTOR_IN3, 0);
+    gpio_set_level(PIN_MOTOR_IN4, 1);
     motor_set_left_speed(speed);
     motor_set_right_speed(speed);
 }
