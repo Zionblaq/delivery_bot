@@ -14,9 +14,9 @@
 #define IR_CENTER_PIN  GPIO_NUM_5
 #define IR_RIGHT_PIN   GPIO_NUM_6
 
-#define IR_ACTIVE_LOW  true   // confirmed: black line reads LOW on your sensors
+#define IR_ACTIVE_LOW  falser 
 
 /* ===================== MOTOR SPEEDS (0-255 PWM range) ===================== */
-#define SPEED_FORWARD     180
-#define SPEED_TURN        150
-#define SPEED_STOP        0
+#define SPEED_FORWARD   350
+#define SPEED_TURN      350
+#define SPEED_STOP      0
