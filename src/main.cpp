@@ -7,28 +7,31 @@
 
 static const char *TAG = "LINEFOLLOW";
 
+static bool pattern_has_any(LinePattern p) {
+    return p.left || p.center || p.right;
+}
+
 extern "C" void app_main(void) {
     motor_control_init();
     line_sensor_init();
 
-    ESP_LOGI(TAG, "Line follower starting...");
-    vTaskDelay(pdMS_TO_TICKS(2000)); // let sensors settle before moving
+    ESP_LOGI(TAG, "Starting...");
+    vTaskDelay(pdMS_TO_TICKS(2000)); // Sensor stabilization delay
 
     while (1) {
         LinePattern p = read_line_pattern();
+        bool line_seen = pattern_has_any(p);
 
-        if (p.center) {
+        if (line_seen) {
+            /* At least one sensor sees the black line */
             motor_forward(SPEED_FORWARD);
-        } else if (p.left) {
-            motor_turn_left(SPEED_TURN);
-        } else if (p.right) {
-            motor_turn_right(SPEED_TURN);
         } else {
-            // No sensor sees the line - stop rather than guess.
+            /* All sensors see white (line lost) -> STOP */
             motor_stop();
         }
 
-        ESP_LOGI(TAG, "IR[L=%d C=%d R=%d]", p.left, p.center, p.right);
+        ESP_LOGI(TAG, "IR[L=%d C=%d R=%d] status: %s",
+                 p.left, p.center, p.right, line_seen ? "FORWARD" : "STOPPED");
 
         vTaskDelay(pdMS_TO_TICKS(15));
     }
