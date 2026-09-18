@@ -14,7 +14,7 @@
 #define IR_CENTER_PIN  GPIO_NUM_5
 #define IR_RIGHT_PIN   GPIO_NUM_6
 
-#define IR_ACTIVE_LOW  falser 
+#define IR_ACTIVE_LOW  false 
 
 /* ===================== MOTOR SPEEDS (0-255 PWM range) ===================== */
 #define SPEED_FORWARD   350
