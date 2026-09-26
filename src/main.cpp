@@ -7,10 +7,6 @@
 
 static const char *TAG = "LINE_FOLLOWER";
 
-/* --- SPEED CONFIGURATION --- */
-#define SPEED_MAX   SPEED_FORWARD   /* Max forward speed */
-#define SPEED_SLOW  SPEED_TURN             /* Custom speed (250 PWM) for turns */
-
 typedef enum {
     LAST_DIR_NONE,
     LAST_DIR_LEFT,
@@ -19,49 +15,64 @@ typedef enum {
 
 extern "C" void app_main(void) {
     motor_control_init();
-    line_sensor_init();
+    LineSensor();
 
-    ESP_LOGI(TAG, "Starting line follower with SPEED_SLOW = 250...");
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    ESP_LOGI(TAG, "Starting motors...");
+    vTaskDelay(pdMS_TO_TICKS(2000)); // Stabilization delay
+
+    // Ensure motor direction pins are set to FORWARD at boot
+    motor_forward(SPEED_FORWARD);
 
     LastDirection last_dir = LAST_DIR_NONE;
 
     while (1) {
         LinePattern p = read_line_pattern();
 
-        // 1. CENTER ON LINE -> Drive Straight at full speed
-        if (p.center) {
-            ESP_LOGI(TAG, "Moving Straight");
-            motor_forward(SPEED_MAX);
+        // 1. CENTER ON LINE (0 1 0 or 1 1 1) -> Drive straight full speed
+        if (p.center || (p.left && p.right)) {
+            ESP_LOGI(TAG, "Straight");
+            motor_forward(SPEED_FORWARD); // Reinforces forward direction
+            motor_set_left_speed(SPEED_FORWARD);
+            motor_set_right_speed(SPEED_FORWARD);
             last_dir = LAST_DIR_NONE;
         }
-        // 2. BEND LEFT -> Turn Left using SPEED_SLOW (250)
-        else if (p.left) {
-            ESP_LOGI(TAG, "Turning Left (250)");
-            motor_turn_left(SPEED_SLOW);
+        // 2. DRIFTED RIGHT (Left sees line) -> Arc Left
+        else if (p.left && !p.right) {
+            ESP_LOGI(TAG, "Turning Left");
+            motor_forward(SPEED_FORWARD);
+            motor_set_left_speed(SPEED_SLOW);      // Slow left wheel
+            motor_set_right_speed(SPEED_FORWARD);  // Fast right wheel
             last_dir = LAST_DIR_LEFT;
         }
-        // 3. BEND RIGHT -> Turn Right using SPEED_SLOW (250)
-        else if (p.right) {
-            ESP_LOGI(TAG, "Turning Right (250)");
-            motor_turn_right(SPEED_SLOW);
+        // 3. DRIFTED LEFT (Right sees line) -> Arc Right
+        else if (p.right && !p.left) {
+            ESP_LOGI(TAG, "Turning Right");
+            motor_forward(SPEED_FORWARD);
+            motor_set_left_speed(SPEED_FORWARD);   // Fast left wheel
+            motor_set_right_speed(SPEED_SLOW);     // Slow right wheel
             last_dir = LAST_DIR_RIGHT;
         }
-        // 4. LINE LOST (All white) -> Search at SPEED_SLOW (250)
+        // 4. ALL WHITE (Line lost) -> Search in last known direction
         else {
             if (last_dir == LAST_DIR_LEFT) {
-                ESP_LOGI(TAG, "Searching Left (250)");
-                motor_turn_left(SPEED_SLOW);
-            } 
+                ESP_LOGI(TAG, "Searching Left...");
+                motor_forward(SPEED_FORWARD);
+                motor_set_left_speed(0);
+                motor_set_right_speed(SPEED_SLOW);
+            }
             else if (last_dir == LAST_DIR_RIGHT) {
-                ESP_LOGI(TAG, "Searching Right (250)");
-                motor_turn_right(SPEED_SLOW);
-            } 
+                ESP_LOGI(TAG, "Searching Right...");
+                motor_forward(SPEED_FORWARD);
+                motor_set_left_speed(SPEED_SLOW);
+                motor_set_right_speed(0);
+            }
             else {
-                motor_stop();
+                // Initial boot on white ground: creep forward to find line
+                ESP_LOGI(TAG, "Creeping forward to find line...");
+                motor_forward(SPEED_SLOW);
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(loop_delay_MS));
     }
 }

@@ -6,5 +6,5 @@ struct LinePattern {
     bool right;
 };
 
-void line_sensor_init();
+void LineSensor();
 LinePattern read_line_pattern();

@@ -909,7 +909,7 @@
 				{
 					"directoryIndex" : 40,
 					"id" : "__idf_main::@7368607ed66887415643",
-					"jsonFile" : "target-__idf_main-8b6d0bb66e0e63224dda.json",
+					"jsonFile" : "target-__idf_main-290057b23ab2bac78fbf.json",
 					"name" : "__idf_main",
 					"projectIndex" : 1
 				},
@@ -951,7 +951,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "app::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-app-a73fd055cdbd3d12f4bc.json",
+					"jsonFile" : "target-app-7ac9b1359348642668ea.json",
 					"name" : "app",
 					"projectIndex" : 0
 				},

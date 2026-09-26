@@ -10,13 +10,13 @@
 #define PIN_MOTOR_IN4   GPIO_NUM_10
 
 /* ===================== IR LINE SENSORS (digital) ===================== */
-#define IR_LEFT_PIN    GPIO_NUM_7
-#define IR_CENTER_PIN  GPIO_NUM_5
-#define IR_RIGHT_PIN   GPIO_NUM_6
+#define LeftPin    GPIO_NUM_7
+#define CenterPin  GPIO_NUM_5
+#define RightPin  GPIO_NUM_6
+#define LineLevel 0 
 
-#define IR_ACTIVE_LOW  false 
-
-/* ===================== MOTOR SPEEDS (0-255 PWM range) ===================== */
-#define SPEED_FORWARD   350
-#define SPEED_TURN      350
+#define SPEED_FORWARD   750
+#define SPEED_TURN      750
+#define SPEED_SLOW      350
 #define SPEED_STOP      0
+#define loop_delay_MS   20

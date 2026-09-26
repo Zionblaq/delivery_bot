@@ -2,29 +2,21 @@
 #include "Bot_config.h"
 #include "driver/gpio.h"
 
-static gpio_num_t s_pins[3] = { IR_LEFT_PIN, IR_CENTER_PIN, IR_RIGHT_PIN };
+void LineSensor(){
+    gpio_config_t config = {};
+    config.pin_bit_mask = (1ULL << LeftPin) | (1ULL << CenterPin) | (1ULL << RightPin);
+    config.mode = GPIO_MODE_INPUT;
+    config.pull_up_en = GPIO_PULLUP_DISABLE;
+    config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    config.intr_type = GPIO_INTR_DISABLE;
+    gpio_config(&config);
 
-void line_sensor_init() {
-    for (int i = 0; i < 3; i++) {
-        gpio_config_t conf = {};
-        conf.pin_bit_mask = (1ULL << s_pins[i]);
-        conf.mode = GPIO_MODE_INPUT;
-        conf.pull_up_en = GPIO_PULLUP_ENABLE;
-        conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        conf.intr_type = GPIO_INTR_DISABLE;
-        gpio_config(&conf);
-    }
-}
-
-static bool read_detected(gpio_num_t pin) {
-    int level = gpio_get_level(pin);
-    return IR_ACTIVE_LOW ? (level == 0) : (level == 1);
 }
 
 LinePattern read_line_pattern() {
     LinePattern p;
-    p.left   = read_detected(s_pins[0]);
-    p.center = read_detected(s_pins[1]);
-    p.right  = read_detected(s_pins[2]);
+    p.left   = (gpio_get_level(LeftPin) == LineLevel);
+    p.center = (gpio_get_level(LeftPin) == LineLevel);
+    p.right  = (gpio_get_level(LeftPin) == LineLevel);
     return p;
 }
