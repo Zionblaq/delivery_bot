@@ -1,7 +1,7 @@
 {
     "version":            "1.3",
     "project_name":       "LineFollowing",
-    "project_version":    "d99b48b-dirty",
+    "project_version":    "47ec608-dirty",
     "project_path":       "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing",
     "idf_path":           "C:/Users/Zion/.platformio/packages/framework-espidf",
     "build_dir":          "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/.pio/build/esp32-s3-devkitc-1",
@@ -1990,7 +1990,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/.pio/build/esp32-s3-devkitc-1/esp-idf/src/libsrc.a",
-            "sources": [ "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/Bot_state.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/CMakeLists.txt", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/IR.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/Just _trial.code-workspace", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/main.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/motor.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/movement.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/readings.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/servo.cpp" ],
+            "sources": [ "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/Bot_state.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/CMakeLists.txt", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/IR.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/Just _trial.code-workspace", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/Line following.code-workspace", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/main.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/motor.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/movement.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/readings.cpp", "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src/servo.cpp" ],
             "include_dirs": [ "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/include" ]
         },
         "tcp_transport": {

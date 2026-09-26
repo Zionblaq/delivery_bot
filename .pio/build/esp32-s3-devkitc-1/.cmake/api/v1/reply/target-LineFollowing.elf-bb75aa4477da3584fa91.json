@@ -2402,24 +2402,24 @@
 			"id" : "__idf___pio_env::@8ed72ffb2edf9d360e6d"
 		},
 		{
-			"backtrace" : 56,
-			"id" : "__idf_esp_driver_gptimer::@b8628cd9d7b32710339f"
-		},
-		{
 			"backtrace" : 68,
 			"id" : "__idf_esp_driver_spi::@a108b58494cdd93e678c"
-		},
-		{
-			"backtrace" : 71,
-			"id" : "__idf_cmock::@38f9eb59693b7394f54c"
 		},
 		{
 			"backtrace" : 70,
 			"id" : "__idf_unity::@fec746937506b5690992"
 		},
 		{
+			"backtrace" : 71,
+			"id" : "__idf_cmock::@38f9eb59693b7394f54c"
+		},
+		{
 			"backtrace" : 72,
 			"id" : "__idf_console::@4311ed8d271cc0ee1422"
+		},
+		{
+			"backtrace" : 56,
+			"id" : "__idf_esp_driver_gptimer::@b8628cd9d7b32710339f"
 		},
 		{
 			"backtrace" : 74,
@@ -2462,32 +2462,12 @@
 			"id" : "__idf_esp_driver_mcpwm::@48ac72772582b222889a"
 		},
 		{
-			"backtrace" : 89,
-			"id" : "__idf_esp_driver_pcnt::@7f5d6483ec7c43d22871"
-		},
-		{
 			"backtrace" : 88,
 			"id" : "__idf_esp_hal_pcnt::@ef149782a99a2bc767b6"
 		},
 		{
-			"backtrace" : 102,
-			"id" : "__idf_esp_hal_lcd::@f665e8e55ce613517df9"
-		},
-		{
-			"backtrace" : 103,
-			"id" : "__idf_esp_hid::@15df40e16a5d8775dd9b"
-		},
-		{
-			"backtrace" : 109,
-			"id" : "__idf_esp_lcd::@d5a84597e1633c9ab0d3"
-		},
-		{
-			"backtrace" : 108,
-			"id" : "__idf_esp_https_server::@a47490a9e49b7eabdb18"
-		},
-		{
-			"backtrace" : 110,
-			"id" : "__idf_protobuf-c::@b14513c4bd859268ec22"
+			"backtrace" : 89,
+			"id" : "__idf_esp_driver_pcnt::@7f5d6483ec7c43d22871"
 		},
 		{
 			"backtrace" : 90,
@@ -2510,24 +2490,24 @@
 			"id" : "__idf_esp_driver_sd_intf::@9cb2f063b9dd7d282253"
 		},
 		{
-			"backtrace" : 96,
-			"id" : "__idf_esp_driver_sdmmc::@6ccb6c8602dfb90db4d7"
-		},
-		{
 			"backtrace" : 95,
 			"id" : "__idf_esp_driver_sdm::@601b6ef28d63f823a7b4"
+		},
+		{
+			"backtrace" : 96,
+			"id" : "__idf_esp_driver_sdmmc::@6ccb6c8602dfb90db4d7"
 		},
 		{
 			"backtrace" : 97,
 			"id" : "__idf_esp_driver_sdspi::@c293af58c49fe790ac32"
 		},
 		{
-			"backtrace" : 98,
-			"id" : "__idf_esp_driver_touch_sens::@834ec88eeea238586f95"
-		},
-		{
 			"backtrace" : 99,
 			"id" : "__idf_esp_driver_tsens::@dad043442c4ac9e51f1a"
+		},
+		{
+			"backtrace" : 98,
+			"id" : "__idf_esp_driver_touch_sens::@834ec88eeea238586f95"
 		},
 		{
 			"backtrace" : 100,
@@ -2536,6 +2516,26 @@
 		{
 			"backtrace" : 101,
 			"id" : "__idf_esp_eth::@68140d310044213ed0bc"
+		},
+		{
+			"backtrace" : 102,
+			"id" : "__idf_esp_hal_lcd::@f665e8e55ce613517df9"
+		},
+		{
+			"backtrace" : 103,
+			"id" : "__idf_esp_hid::@15df40e16a5d8775dd9b"
+		},
+		{
+			"backtrace" : 108,
+			"id" : "__idf_esp_https_server::@a47490a9e49b7eabdb18"
+		},
+		{
+			"backtrace" : 109,
+			"id" : "__idf_esp_lcd::@d5a84597e1633c9ab0d3"
+		},
+		{
+			"backtrace" : 110,
+			"id" : "__idf_protobuf-c::@b14513c4bd859268ec22"
 		},
 		{
 			"backtrace" : 111,
@@ -2554,12 +2554,12 @@
 			"id" : "__idf_fatfs::@75ac1d9b25dacc8cc9e7"
 		},
 		{
-			"backtrace" : 117,
-			"id" : "__idf_rt::@c044be52929cb104e3c1"
-		},
-		{
 			"backtrace" : 116,
 			"id" : "__idf_perfmon::@aac0f647c32bb8f54a67"
+		},
+		{
+			"backtrace" : 117,
+			"id" : "__idf_rt::@c044be52929cb104e3c1"
 		},
 		{
 			"backtrace" : 118,
