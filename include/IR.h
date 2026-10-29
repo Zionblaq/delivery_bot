@@ -1,10 +1,9 @@
 #pragma once
 
-struct LinePattern {
-    bool left;
-    bool center;
-    bool right;
-};
+// Configure the three IR sensor pins as inputs
+void lineSensor(void);
 
-void LineSensor();
-LinePattern read_line_pattern();
+// Raw sensor readings (1 = HIGH, 0 = LOW)
+int ir_read_right(void);
+int ir_read_left(void);
+int ir_read_mid(void);

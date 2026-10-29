@@ -1,22 +1,26 @@
 #pragma once
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 
-/* ===================== MOTOR PINS (L298N) ===================== */
-#define PIN_MOTOR_ENA   GPIO_NUM_14
-#define PIN_MOTOR_ENB   GPIO_NUM_9
-#define PIN_MOTOR_IN1   GPIO_NUM_13
-#define PIN_MOTOR_IN2   GPIO_NUM_12
-#define PIN_MOTOR_IN3   GPIO_NUM_11
-#define PIN_MOTOR_IN4   GPIO_NUM_10
 
-/* ===================== IR LINE SENSORS (digital) ===================== */
-#define LeftPin    GPIO_NUM_7
-#define CenterPin  GPIO_NUM_5
-#define RightPin  GPIO_NUM_6
-#define LineLevel 0 
+#define rightSensor     GPIO_NUM_34
+#define leftSensor      GPIO_NUM_35
+#define midSensor       GPIO_NUM_32
 
-#define SPEED_FORWARD   750
-#define SPEED_TURN      750
-#define SPEED_SLOW      350
-#define SPEED_STOP      0
-#define loop_delay_MS   20
+#define MOTOR_SPEED      200
+#define slow_speed        150
+
+
+#define ENABLE_RIGHT_MOTOR  GPIO_NUM_33
+#define RIGHT_MOTOR_PIN1    GPIO_NUM_26
+#define RIGHT_MOTOR_PIN2    GPIO_NUM_27
+#define ENABLE_LEFT_MOTOR   GPIO_NUM_13
+#define LEFT_MOTOR_PIN1     GPIO_NUM_14
+#define LEFT_MOTOR_PIN2     GPIO_NUM_12
+
+#define PWM_FREQ_HZ         1000
+#define PWM_MODE            LEDC_LOW_SPEED_MODE
+#define PWM_TIMER           LEDC_TIMER_0
+#define PWM_RESOLUTION      LEDC_TIMER_8_BIT
+#define RIGHT_PWM_CHANNEL   LEDC_CHANNEL_0
+#define LEFT_PWM_CHANNEL    LEDC_CHANNEL_1
