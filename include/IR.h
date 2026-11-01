@@ -7,3 +7,5 @@ void lineSensor(void);
 int ir_read_right(void);
 int ir_read_left(void);
 int ir_read_mid(void);
+
+bool ir_line_detected(void);
