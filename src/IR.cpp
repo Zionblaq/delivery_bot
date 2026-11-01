@@ -22,3 +22,8 @@ int ir_read_left(void)  {
 int ir_read_mid(void)   { 
     return gpio_get_level(midSensor);          
 }
+
+bool ir_line_detected(void)
+{
+    return ir_read_left() || ir_read_mid() || ir_read_right();
+}

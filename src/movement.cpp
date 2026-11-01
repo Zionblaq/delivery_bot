@@ -1,12 +1,19 @@
 #include "movement.h"
-#include "bot_config.h"
+#include "Bot_config.h"
 #include "esp_err.h"
 
-// ---------------- Private helpers ----------------
 static void set_pwm(ledc_channel_t channel, uint32_t duty)
 {
     ledc_set_duty(PWM_MODE, channel, duty);
     ledc_update_duty(PWM_MODE, channel);
+}
+
+static void set_direction(int r1, int r2, int l1, int l2)
+{
+    gpio_set_level(RIGHT_MOTOR_PIN1, r1);
+    gpio_set_level(RIGHT_MOTOR_PIN2, r2);
+    gpio_set_level(LEFT_MOTOR_PIN1,  l1);
+    gpio_set_level(LEFT_MOTOR_PIN2,  l2);
 }
 
 static void pwm_init(void)
@@ -50,30 +57,38 @@ static void gpio_init_motors(void)
     ESP_ERROR_CHECK(gpio_config(&out_conf));
 }
 
-// ---------------- Public API ----------------
-void movement(void)
+
+void movement_init(void)
 {
     gpio_init_motors();
     pwm_init();
-    stop_car();   // start with motors stopped
+    stop_car();
+}
+
+
+static uint32_t trimmed(int speed, int pct)
+{
+    int v = speed * pct / 100;
+    if (v > 255) v = 255;
+    if (v < 0)   v = 0;
+    return (uint32_t)v;
+}
+
+void move_forward_speed(int speed)
+{
+    set_direction(1, 0, 1, 0);
+    set_pwm(RIGHT_PWM_CHANNEL, speed);
+    set_pwm(LEFT_PWM_CHANNEL,  speed);
 }
 
 void move_forward(void)
 {
-    gpio_set_level(RIGHT_MOTOR_PIN1, 1);
-    gpio_set_level(RIGHT_MOTOR_PIN2, 0);
-    gpio_set_level(LEFT_MOTOR_PIN1, 1);
-    gpio_set_level(LEFT_MOTOR_PIN2, 0);
-    set_pwm(RIGHT_PWM_CHANNEL, MOTOR_SPEED);
-    set_pwm(LEFT_PWM_CHANNEL, MOTOR_SPEED);
+    move_forward_speed(MOTOR_SPEED);
 }
 
 void move_backward(void)
 {
-    gpio_set_level(RIGHT_MOTOR_PIN1, 0);
-    gpio_set_level(RIGHT_MOTOR_PIN2, 1);
-    gpio_set_level(LEFT_MOTOR_PIN1, 0);
-    gpio_set_level(LEFT_MOTOR_PIN2, 1);
+    set_direction(0, 1, 0, 1);
     set_pwm(RIGHT_PWM_CHANNEL, MOTOR_SPEED);
     set_pwm(LEFT_PWM_CHANNEL,  MOTOR_SPEED);
 }
@@ -81,31 +96,22 @@ void move_backward(void)
 void turn_left(void)
 {
     // Right motor forward, left motor backward
-    gpio_set_level(RIGHT_MOTOR_PIN1, 1);
-    gpio_set_level(RIGHT_MOTOR_PIN2, 0);
-    gpio_set_level(LEFT_MOTOR_PIN1, 0);
-    gpio_set_level(LEFT_MOTOR_PIN2, 1);
+    set_direction(1, 0, 0, 1);
     set_pwm(RIGHT_PWM_CHANNEL, MOTOR_SPEED);
-    set_pwm(LEFT_PWM_CHANNEL, slow_speed);
+    set_pwm(LEFT_PWM_CHANNEL,  TURN_SPEED);
 }
 
 void turn_right(void)
 {
     // Right motor backward, left motor forward
-    gpio_set_level(RIGHT_MOTOR_PIN1, 0);
-    gpio_set_level(RIGHT_MOTOR_PIN2, 1);
-    gpio_set_level(LEFT_MOTOR_PIN1, 1);
-    gpio_set_level(LEFT_MOTOR_PIN2, 0);
-    set_pwm(RIGHT_PWM_CHANNEL, slow_speed);
-    set_pwm(LEFT_PWM_CHANNEL, MOTOR_SPEED);
+    set_direction(0, 1, 1, 0);
+    set_pwm(RIGHT_PWM_CHANNEL, TURN_SPEED);
+    set_pwm(LEFT_PWM_CHANNEL,  MOTOR_SPEED);
 }
 
 void stop_car(void)
 {
-    gpio_set_level(RIGHT_MOTOR_PIN1, 0);
-    gpio_set_level(RIGHT_MOTOR_PIN2, 0);
-    gpio_set_level(LEFT_MOTOR_PIN1, 0);
-    gpio_set_level(LEFT_MOTOR_PIN2, 0);
+    // Same as the original: only the enable (PWM) pins are zeroed
     set_pwm(RIGHT_PWM_CHANNEL, 0);
-    set_pwm(LEFT_PWM_CHANNEL, 0);
+    set_pwm(LEFT_PWM_CHANNEL,  0);
 }
