@@ -27,8 +27,6 @@ static bool read_detected(gpio_num_t pin) {
 void line_sensor_task(void *pvParameters) {
     (void)pvParameters;
     while (1) {
-        // Store as 0/1 in shared state so debug_task's existing %d
-        // printf format still works without changes.
         robot_state_set_line_raw(0, read_detected(s_pins[0]) ? 1 : 0);
         robot_state_set_line_raw(1, read_detected(s_pins[1]) ? 1 : 0);
         robot_state_set_line_raw(2, read_detected(s_pins[2]) ? 1 : 0);

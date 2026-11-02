@@ -9,7 +9,8 @@
 #include <algorithm>
 
 #define SOUND_SPEED_CM_US   0.0343f
-#define SAMPLE_GAP_MS       60
+#define SAMPLE_GAP_MS       30      // pause after each sensor (echoes beyond 5 m are gone by then)
+#define PING_TIMEOUT_US     9000    // give up on a ping after ~150 cm; the navigator does not need more
 #define MAX_VALID_CM        400.0f   // HC-SR04 realistic max range - anything beyond is noise
 
 struct UsPair {
@@ -17,11 +18,12 @@ struct UsPair {
     gpio_num_t echo;
 };
 
+// Order must match the US_* indices in Bot_config.h (these are what robot_state_set_distance() uses)
 static UsPair s_sensors[4] = {
-    { US1_TRIG, US1_ECHO },
-    { US2_TRIG, US2_ECHO },
-    { US3_TRIG, US3_ECHO },
-    { US4_TRIG, US4_ECHO },
+    { LF_TRIG,  LF_ECHO  },   // US_FRONT_LEFT   = 0
+    { MID_TRIG, MID_ECHO },   // US_FRONT_CENTER = 1
+    { RG_TRIG,  RG_ECHO  },   // US_FRONT_RIGHT  = 2
+    { BK_TRIG,  BK_ECHO  },   // US_REAR         = 3
 };
 
 static void configure_sensor_pins(UsPair &s) {
@@ -58,12 +60,12 @@ static float single_ping_cm(UsPair &s) {
 
     int64_t wait_start = esp_timer_get_time();
     while (gpio_get_level(s.echo) == 0) {
-        if ((esp_timer_get_time() - wait_start) > ECHO_TIMEOUT_US) return -1.0f;
+        if ((esp_timer_get_time() - wait_start) > PING_TIMEOUT_US) return -1.0f;
     }
 
     int64_t echo_start = esp_timer_get_time();
     while (gpio_get_level(s.echo) == 1) {
-        if ((esp_timer_get_time() - echo_start) > ECHO_TIMEOUT_US) return -1.0f;
+        if ((esp_timer_get_time() - echo_start) > PING_TIMEOUT_US) return -1.0f;
     }
     int64_t echo_end = esp_timer_get_time();
 
@@ -82,7 +84,7 @@ static float single_ping_cm(UsPair &s) {
 static float measure_distance_cm(UsPair &s) {
     float samples[3];
     for (int i = 0; i < 3; i++) {
-        samples[i] = single_ping_cm(&s == &s ? s : s); // keep signature simple
+        samples[i] = single_ping_cm(s);
         esp_rom_delay_us(3000); // brief gap between the 3 pings on the same sensor
     }
 
@@ -98,13 +100,21 @@ static float measure_distance_cm(UsPair &s) {
     return (median >= 9999.0f) ? -1.0f : median;
 }
 
+// Measure one sensor, publish the result, then pause so its echo cannot disturb the next sensor
+static void update_sensor(int i) {
+    float d = measure_distance_cm(s_sensors[i]);
+    robot_state_set_distance(i, d);
+    vTaskDelay(pdMS_TO_TICKS(SAMPLE_GAP_MS));
+}
+
+// The front-centre sensor is re-read after every other sensor, so the obstacle check and the
+// line-following navigator see fresh front readings several times per cycle.
 void ultrasonic_task(void *pvParameters) {
     (void)pvParameters;
     while (1) {
         for (int i = 0; i < 4; i++) {
-            float d = measure_distance_cm(s_sensors[i]);
-            robot_state_set_distance(i, d);
-            vTaskDelay(pdMS_TO_TICKS(SAMPLE_GAP_MS));
+            update_sensor(i);
+            if (i != US_FRONT_CENTER) update_sensor(US_FRONT_CENTER);
         }
     }
 }

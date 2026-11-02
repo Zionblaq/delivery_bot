@@ -9,15 +9,14 @@
 #define PIN_MOTOR_IN3   GPIO_NUM_11
 #define PIN_MOTOR_IN4   GPIO_NUM_10
 
-/* ===================== ULTRASONIC SENSORS ===================== */
-#define US1_TRIG  GPIO_NUM_19
-#define US1_ECHO  GPIO_NUM_20
-#define US2_TRIG  GPIO_NUM_21
-#define US2_ECHO  GPIO_NUM_47
-#define US3_TRIG  GPIO_NUM_48
-#define US3_ECHO  GPIO_NUM_36
-#define US4_TRIG  GPIO_NUM_37
-#define US4_ECHO  GPIO_NUM_35
+#define LF_TRIG  GPIO_NUM_35
+#define LF_ECHO  GPIO_NUM_36
+#define MID_TRIG  GPIO_NUM_1
+#define MID_ECHO  GPIO_NUM_2
+#define RG_TRIG  GPIO_NUM_16
+#define RG_ECHO  GPIO_NUM_15
+#define BK_TRIG  GPIO_NUM_37
+#define BK_ECHO  GPIO_NUM_38
 
 #define OBSTACLE_DISTANCE_CM      25.0f
 #define ECHO_TIMEOUT_US           50000
