@@ -8,6 +8,7 @@ static void set_pwm(ledc_channel_t channel, uint32_t duty)
     ledc_update_duty(PWM_MODE, channel);
 }
 
+<<<<<<< HEAD
 static void set_direction(int r1, int r2, int l1, int l2)
 {
     gpio_set_level(RIGHT_MOTOR_PIN1, r1);
@@ -65,6 +66,57 @@ void movement_init(void)
     stop_car();
 }
 
+=======
+void movement_log_record(MoveDir dir, uint32_t duration_ms) {
+    if (duration_ms == 0) return;
+    if (s_log_mutex == NULL) movement_log_init();
+    xSemaphoreTake(s_log_mutex, portMAX_DELAY);
+    if (s_log.size() >= MAX_LOG_ENTRIES) s_log.erase(s_log.begin());
+    s_log.push_back({dir, duration_ms});
+    xSemaphoreGive(s_log_mutex);
+}
+
+void movement_log_reset() {
+    if (s_log_mutex == NULL) {
+        movement_log_init();
+    }
+    xSemaphoreTake(s_log_mutex, portMAX_DELAY);
+    s_log.clear();
+    xSemaphoreGive(s_log_mutex);
+}
+
+static MoveDir opposite(MoveDir d) {
+    switch (d) {
+        case MoveDir::FORWARD:  return MoveDir::BACKWARD;
+        case MoveDir::BACKWARD: return MoveDir::FORWARD;
+        case MoveDir::LEFT:     return MoveDir::RIGHT;
+        case MoveDir::RIGHT:    return MoveDir::LEFT;
+        case MoveDir::PIVOT_LEFT:  return MoveDir::PIVOT_RIGHT;
+        case MoveDir::PIVOT_RIGHT: return MoveDir::PIVOT_LEFT;
+    }
+    return MoveDir::FORWARD;
+}
+
+static void drive(MoveDir d, int speed) {
+    switch (d) {
+        case MoveDir::FORWARD:  motor_forward(speed); break;
+        case MoveDir::BACKWARD: motor_backward(speed); break;
+        case MoveDir::LEFT:     motor_turn_left(speed); break;
+        case MoveDir::RIGHT:    motor_turn_right(speed); break;
+        case MoveDir::PIVOT_LEFT:  motor_turn_left(speed); break;
+        case MoveDir::PIVOT_RIGHT: motor_turn_right(speed); break;
+    }
+}
+
+void movement_log_retrace() {
+    if (s_log_mutex == NULL) {
+        movement_log_init();
+    }
+    xSemaphoreTake(s_log_mutex, portMAX_DELAY);
+    std::vector<MoveEntry> snapshot = s_log;
+    s_log.clear();
+    xSemaphoreGive(s_log_mutex);
+>>>>>>> 99be0c6 (Hopefully Works)
 
 static uint32_t trimmed(int speed, int pct)
 {

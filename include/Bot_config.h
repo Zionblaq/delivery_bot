@@ -5,6 +5,17 @@
 #include "driver/ledc.h"
 
 
+<<<<<<< HEAD
+=======
+#define LF_TRIG  GPIO_NUM_35
+#define LF_ECHO  GPIO_NUM_36
+#define MID_TRIG  GPIO_NUM_1
+#define MID_ECHO  GPIO_NUM_2
+#define RG_TRIG  GPIO_NUM_16
+#define RG_ECHO  GPIO_NUM_15
+#define BK_TRIG  GPIO_NUM_37
+#define BK_ECHO  GPIO_NUM_38
+>>>>>>> 99be0c6 (Hopefully Works)
 
 #define DELAY_MS(ms)       vTaskDelay(pdMS_TO_TICKS(ms))
 
