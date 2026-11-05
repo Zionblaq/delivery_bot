@@ -1,4 +1,4 @@
-#include "readings.h"
+﻿#include "readings.h"
 #include "Bot_state.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

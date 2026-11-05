@@ -1,8 +1,8 @@
 #include "Bot_state.h"
 #include <cstring>
-#include <cstdlib>
 #include <cstdio>
 #include "esp_timer.h"
+#include "esp_random.h"
 
 static RobotMode s_mode = RobotMode::MANUAL;
 static ManualCmd s_manual_cmd = ManualCmd::NONE;
@@ -14,7 +14,6 @@ static bool s_order_active = false;
 static bool s_unlock_active = false;
 static bool s_powered_off = false;
 static DeliveryLocation s_target_location = DeliveryLocation::NONE;
-static bool s_priority_override = false;
 static SemaphoreHandle_t s_mutex = NULL;
 
 void robot_state_init() {
@@ -83,8 +82,8 @@ void robot_state_get_line_raw(int out[3]) {
 
 std::string robot_state_new_order() {
     char buf[8];
-    int pin_val = rand() % 10000;
-    snprintf(buf, sizeof(buf), "%04d", pin_val);
+    unsigned int pin_val = static_cast<unsigned int>(esp_random() % 10000);
+    snprintf(buf, sizeof(buf), "%04u", pin_val);
 
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     s_current_pin = buf;
@@ -139,18 +138,4 @@ DeliveryLocation robot_state_get_target_location() {
     DeliveryLocation l = s_target_location;
     xSemaphoreGive(s_mutex);
     return l;
-}
-
-void robot_state_request_priority_override() {
-    xSemaphoreTake(s_mutex, portMAX_DELAY);
-    s_priority_override = true;
-    xSemaphoreGive(s_mutex);
-}
-
-bool robot_state_consume_priority_override() {
-    xSemaphoreTake(s_mutex, portMAX_DELAY);
-    bool v = s_priority_override;
-    s_priority_override = false;
-    xSemaphoreGive(s_mutex);
-    return v;
 }

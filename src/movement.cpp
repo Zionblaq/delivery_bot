@@ -1,4 +1,4 @@
-#include "movement.h"
+﻿#include "movement.h"
 #include "Bot_config.h"
 #include "motor.h"
 #include <vector>
@@ -16,6 +16,7 @@ static SemaphoreHandle_t s_log_mutex = NULL;
 #define MAX_LOG_ENTRIES 500
 
 void movement_log_init() {
+    if (s_log_mutex != NULL) return;
     s_log_mutex = xSemaphoreCreateMutex();
     s_log.reserve(64);
 }

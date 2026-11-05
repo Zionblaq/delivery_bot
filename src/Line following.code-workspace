@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../Line following"
+		},
+		{
+			"name": "Delivery_Bot",
+			"path": "../../Delivery_Bot"
+		},
+		{
+			"name": "LineFollowing",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}

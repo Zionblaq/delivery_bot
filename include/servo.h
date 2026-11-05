@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 void servo_control_init();
 void servo_open();

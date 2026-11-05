@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -33,6 +33,3 @@ bool robot_state_is_powered_off();
 
 void robot_state_set_target_location(DeliveryLocation loc);
 DeliveryLocation robot_state_get_target_location();
-
-// REMOVED: robot_state_request_priority_override() / consume_priority_override()
-// control_task now checks mode/power directly instead of a separate flag.

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <cstdint>
 
 enum class MoveDir { FORWARD, BACKWARD, LEFT, RIGHT, PIVOT_LEFT, PIVOT_RIGHT };

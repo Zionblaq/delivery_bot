@@ -8,4 +8,3 @@ void motor_backward(int speed);
 void motor_turn_left(int speed);
 void motor_turn_right(int speed);
 void motor_stop();
-void motor_drive(int left, int right);
