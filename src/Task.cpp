@@ -1,4 +1,4 @@
-#include "Task.h"
+﻿#include "Task.h"
 #include "Bot_config.h"
 #include "Bot_state.h"
 #include "motor.h"
@@ -8,58 +8,112 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include <atomic>
 
 static const char *TAG = "CONTROL";
-#define NAV_SWAP_TURNS  0
+
+// ===========================================================================
+// Line following with location choice: A = straight, B = right, C = left.
+// Everything lives in this file; no other file needs to change.
+// ===========================================================================
+
+// ---- Things to flip if the car does the opposite of what is described ----
+// 1 = swap the turn direction used for the turn at the junction (B right, C left) and for turns when going
+//     round obstacles. Your motor_turn_left() drives only the LEFT motor (IN3/IN4 = 0), which turns the car
+//     to the RIGHT, and motor_turn_right() does the opposite, so this starts at 1.
+//     Check: press Left in manual mode. If the car turns left, set this to 0.
+#define NAV_SWAP_TURNS  1
+// 1 = swap the wheel sides used for steering while following the line and going round obstacles.
+//     Set it if the car steers AWAY from the line instead of toward it.
 #define NAV_SWAP_SIDES  0
+// 1 = swap the left and right line sensors.
+//     Set it if, with the line under the car's LEFT side, the log below says "L0 M0 R1".
+#define NAV_SWAP_IR     0
+// Readings of the front-left / front-right ultrasonic sensors are scaled by this percentage.
+// Use 71 if they point 45 degrees outward, 100 if they look straight out to the sides.
 #define NAV_SIDE_SENSOR_SCALE_PCT  100
+// Percentage of the (255-capped) SPEED_FORWARD / SPEED_TURN used while line following.
+// Lower it (for example 70) if the car overshoots the line, raise it if the motors stall.
+#define NAV_SPEED_PCT  100
+// Line following: the car keeps moving forward and steers by slowing the wheel on the side of the line.
+// Speed while following the line, as a percentage of the cruise speed. Lower it if the car still swings
+// from side to side or overshoots bends.
+#define NAV_FOLLOW_SPEED_PCT  70
+// Speed of the inner wheel, as a percentage of the following speed, for a small correction
+// (line under the middle and one outer sensor) and for a big correction (line under one outer sensor only).
+// If the car does not turn enough, lower these. If it jerks or stalls on turns, raise them.
+#define NAV_STEER_GENTLE_PCT  70
+#define NAV_STEER_SHARP_PCT   20
+// 1 = print what the IR sensors see and what the car decides, about 3 times a second.
+#define NAV_DEBUG_LINE 1
+// OBSTACLE AVOIDANCE IS COMMENTED OUT (compiled out) while this is 0: the car does not look for obstacles,
+// go round them or search for the line. Set to 1 to bring all of it back.
+#define NAV_OBSTACLE_AVOIDANCE 0
+
+// ---- Tuning (all times in ms, distances in cm) ----
 namespace {
-constexpr uint32_t NAV_PERIOD_MS                 = 10;  
-constexpr uint32_t NAV_START_IGNORE_MS           = 500; 
-constexpr uint32_t NAV_JUNCTION_CONFIRM_MS       = 40;  
-constexpr uint32_t NAV_JUNCTION_ROLL_MS          = 300;
-constexpr uint32_t NAV_JUNCTION_TURN_MIN_MS      = 200; 
-constexpr uint32_t NAV_JUNCTION_TURN_TIMEOUT_MS  = 1500;
-constexpr uint32_t NAV_JUNCTION_IGNORE_MS        = 1000;
-constexpr uint32_t NAV_LINE_LOST_STOP_MS         = 600; 
-constexpr int      NAV_OBSTACLE_CM               = 25; 
-constexpr uint32_t NAV_OBSTACLE_CONFIRM_MS       = 120;
-constexpr int      NAV_SIDE_CLEARANCE_CM         = 25;  
-constexpr int      NAV_SAFE_CM                   = 20;
+constexpr uint32_t NAV_PERIOD_MS                 = 10;     // control loop period
+
+// Junction and destination
+constexpr uint32_t NAV_START_IGNORE_MS           = 500;    // ignore black bars for this long after a run starts
+constexpr uint32_t NAV_JUNCTION_CONFIRM_MS       = 40;     // all three IR sensors black this long = junction / marker
+constexpr uint32_t NAV_JUNCTION_ROLL_MS          = 300;    // roll onto the junction so the wheels are over it before turning
+constexpr uint32_t NAV_JUNCTION_TURN_MIN_MS      = 200;    // turn at least this long (to leave the old line) ...
+constexpr uint32_t NAV_JUNCTION_TURN_TIMEOUT_MS  = 1500;   // ... then until the middle sensor finds the branch, or give up
+constexpr uint32_t NAV_JUNCTION_IGNORE_MS        = 1000;   // after the junction, ignore bars while the car clears it
+constexpr uint32_t NAV_LINE_LOST_STOP_MS         = 200;    // all IR white this long (and no obstacle) = stop
+
+// Obstacle: stop and notify the web page
+constexpr int      NAV_OBSTACLE_CM               = 25;     // front sensor stops the car at this distance
+constexpr uint32_t NAV_OBSTACLE_CONFIRM_MS       = 120;    // ... if it stays this close for this long
+constexpr uint32_t NAV_RESUME_GRACE_MS           = 700;    // after Play, ignore the front sensor this long (its reading may be old)
+
+#if NAV_OBSTACLE_AVOIDANCE
+// Obstacle detection and going round
+constexpr int      NAV_SIDE_CLEARANCE_CM         = 25;     // a side counts as free to turn into above this
+constexpr int      NAV_SAFE_CM                   = 20;     // distance kept from the obstacle while going round it
 constexpr int      NAV_SAFE_TOLERANCE_CM         = 4;
-constexpr int      NAV_LOST_CM                   = 45;  
+constexpr int      NAV_LOST_CM                   = 45;     // wall-side reading above this = obstacle edge passed
 constexpr uint32_t NAV_LOST_CONFIRM_MS           = 150;
-constexpr int      NAV_CONTOUR_FRONT_CM          = 18; 
+constexpr int      NAV_CONTOUR_FRONT_CM          = 18;     // front at or below this while going round = inner corner
 constexpr uint32_t NAV_INNER_CONFIRM_MS          = 80;
-constexpr int      NAV_BLOCKED_CM                = 10;  
+constexpr int      NAV_BLOCKED_CM                = 10;     // front below this while returning/searching = stop
 constexpr uint32_t NAV_BLOCKED_CONFIRM_MS        = 100;
 constexpr int      NAV_MAX_INNER_CORNERS         = 4;
-constexpr uint32_t NAV_CORNER_CLEAR_MS           = 300; 
-constexpr uint32_t NAV_SEEN_TIMEOUT_MS           = 1500;
+constexpr uint32_t NAV_CORNER_CLEAR_MS           = 300;    // roll past an edge before turning around it
+constexpr uint32_t NAV_SEEN_TIMEOUT_MS           = 1500;   // wall never seen on a face: assume it is passed after this long
 constexpr uint32_t NAV_MAX_CONTOUR_MS            = 20000;
-constexpr int      NAV_SIDE_RECHECKS             = 5;   
+constexpr int      NAV_SIDE_RECHECKS             = 5;      // times to re-look when both sides look blocked
 constexpr uint32_t NAV_SIDE_RECHECK_DELAY_MS     = 500;
 
+// Turns (time for roughly 90 degrees)
 constexpr uint32_t NAV_TURN_LEFT_MS              = 350;
 constexpr uint32_t NAV_TURN_RIGHT_MS             = 350;
-constexpr int      NAV_RETURN_SLOW_START_PCT     = 80;  
-constexpr uint32_t NAV_RETURN_EXTRA_MS           = 1500;
-constexpr uint32_t NAV_AXLE_TO_LINE_MS           = 300; 
+
+// Finding the line again after going round
+constexpr int      NAV_RETURN_SLOW_START_PCT     = 80;     // slow down after this % of the recorded sideways time
+constexpr uint32_t NAV_RETURN_EXTRA_MS           = 1500;   // extra search time beyond the recorded sideways time
+constexpr uint32_t NAV_AXLE_TO_LINE_MS           = 300;    // roll on after the IR sees the line so the wheels are over it
 constexpr uint32_t NAV_ALIGN_MIN_MS              = 150;
 constexpr uint32_t NAV_ALIGN_TIMEOUT_MS          = 1200;
-constexpr uint32_t NAV_SEARCH_STEP_MS            = 150; 
+constexpr uint32_t NAV_SEARCH_STEP_MS            = 150;    // turn time of search round 1; round n turns n x this
 constexpr uint32_t NAV_SEARCH_CREEP_MS           = 250;
-constexpr int      NAV_SEARCH_ROUNDS             = 4;   
-constexpr uint32_t NAV_SEARCH_TIMEOUT_MS         = 8000;
-constexpr float    NAV_APPROX_SPEED_CM_PER_S     = 25.0f;
-}  
+constexpr int      NAV_SEARCH_ROUNDS             = 4;      // sweeps widen for this many rounds
+constexpr uint32_t NAV_SEARCH_TIMEOUT_MS         = 8000;   // keep searching this long, then stop
+constexpr float    NAV_APPROX_SPEED_CM_PER_S     = 25.0f;  // calibrate; used for log messages only
+#endif  // NAV_OBSTACLE_AVOIDANCE
 
+}  // namespace
 
+// ===========================================================================
+// Movement log. Every move, manual or automatic, is recorded as (type, duration) so that
+// movement_log_retrace() can drive the same path backwards after a delivery.
+// ===========================================================================
 static MoveDir s_current_dir = MoveDir::FORWARD;
 static bool s_moving = false;
 static int64_t s_segment_start_us = 0;
 
-
+// Close the segment that was running and write it to the log
 static void flush_segment() {
     if (s_moving) {
         int64_t now = esp_timer_get_time();
@@ -69,7 +123,7 @@ static void flush_segment() {
     }
 }
 
-
+// Start a new log segment when the type of movement changes
 static void begin_segment(MoveDir dir) {
     if (s_moving && dir == s_current_dir) return;
     flush_segment();
@@ -97,21 +151,28 @@ static void set_active_direction(MoveDir dir, int speed) {
     }
 }
 
+// ===========================================================================
+// Navigator: motors
+// ===========================================================================
+// motor.cpp uses 8-bit PWM (0-255) and clamps anything higher, so SPEED_FORWARD 300 and SPEED_TURN 500
+// both end up as 255. The navigator needs a real gap between cruise and slow speed (that is how it
+// steers round an obstacle), so the slow speed is derived from cruise.
+static int g_speed = 500;
+static int g_turn  = 500;
+static int g_slow  = 300;
 
-static int g_speed = 255;
-static int g_turn  = 255;
-static int g_slow  = 180;
-
+// Both wheels forward, each at its own speed (gentle steering). Logged as straight driving.
 static void nav_drive(int left_speed, int right_speed) {
 #if NAV_SWAP_SIDES
     int t = left_speed; left_speed = right_speed; right_speed = t;
 #endif
     begin_segment(MoveDir::FORWARD);
-    motor_forward(left_speed > right_speed ? left_speed : right_speed);   
-    motor_set_left_speed(left_speed);                                     
+    motor_forward(left_speed > right_speed ? left_speed : right_speed);   // sets the direction of both wheels
+    motor_set_left_speed(left_speed);                                     // then each wheel gets its own speed
     motor_set_right_speed(right_speed);
 }
 
+// Turn using the project's own turn movement, so the return-trip replay stays consistent
 static void nav_turn(bool left) {
 #if NAV_SWAP_TURNS
     left = !left;
@@ -123,6 +184,9 @@ static void nav_stop() {
     stop_and_flush();
 }
 
+// ===========================================================================
+// Navigator: inputs
+// ===========================================================================
 struct NavInputs {
     int  front_cm;      // 999 = no echo
     int  left_cm;
@@ -130,7 +194,7 @@ struct NavInputs {
     bool ir_left;       // true = black
     bool ir_mid;
     bool ir_right;
-    char destination;   // 'A' straight, 'B' right, 'C' left
+    char destination;   // 'A' straight, 'B' right, 'C' left, 0 = nothing picked
 };
 
 static int cm_or_none(float v) {
@@ -149,29 +213,60 @@ static void nav_read_inputs(NavInputs &in) {
     if (in.right_cm < 999) in.right_cm = in.right_cm * NAV_SIDE_SENSOR_SCALE_PCT / 100;
 
     LinePattern p = read_line_pattern();
+#if NAV_SWAP_IR
+    in.ir_left  = p.right;
+    in.ir_mid   = p.center;
+    in.ir_right = p.left;
+#else
     in.ir_left  = p.left;
     in.ir_mid   = p.center;
     in.ir_right = p.right;
+#endif
 
+    // The location picked on the web page ("Pick a Location"); 0 = nothing picked yet
     switch (robot_state_get_target_location()) {
+        case DeliveryLocation::LOC_A: in.destination = 'A'; break;   // straight
         case DeliveryLocation::LOC_B: in.destination = 'B'; break;   // right
         case DeliveryLocation::LOC_C: in.destination = 'C'; break;   // left
-        default:                      in.destination = 'A'; break;   // straight
+        default:                      in.destination = 0;   break;
     }
 }
 
-
+// ===========================================================================
+// Navigator: state machine
+//   Idle -> FollowToJunction -> (A: straight | B: turn right | C: turn left)
+//        -> FollowToDestination -> Arrived
+//
+// The destination is picked on the web page ("Pick a Location"). The car waits until one is picked.
+//
+// NO LINE: the car does not search. It stops (end of line after the junction = arrived,
+// line lost before the junction = stopped).
+//
+// OBSTACLE: an interrupt checked before anything else while the car drives along the line. An obstacle ahead
+// stops the car and the web page is notified. The car waits until Play is pressed on the web page.
+// The Stop button on the web page pauses the journey the same way.
+//
+// GOING ROUND OBSTACLES (recording the distance, finding the line again) is commented out below with
+// NAV_OBSTACLE_AVOIDANCE 0. Every part of it sits between "#if NAV_OBSTACLE_AVOIDANCE" and "#endif".
+// ===========================================================================
 enum class NavState {
     Idle,                 // line mode just started
     FollowToJunction,     // line following until the junction
+    RollOntoJunction,     // rolling forward so the wheels are over the junction
+    JunctionWait,         // at the junction but no location picked
+    ObstaclePause,        // stopped by the obstacle interrupt, waiting for Play on the web page
+    UserPause,            // stopped by the Stop button on the web page, waiting for Play
     TurnAtJunction,       // turn onto the right or left branch
     FollowToDestination,  // line following after the junction until the end marker / end of line
+#if NAV_OBSTACLE_AVOIDANCE
     CheckSides,           // bypass: pick the freer side
     TurnOut,              // bypass: turn toward it and start the path record
     Contour,              // bypass: go round the obstacle at a safe distance
     ReturnToLine,         // bypass: drive back the recorded sideways distance
-    SearchForLine,        // bypass: line not where expected, sweep and creep
+    SearchForLine,        // bypass ONLY: line not where expected after going round an obstacle
     AlignWithLine,        // bypass: turn back to the original heading
+#endif  // NAV_OBSTACLE_AVOIDANCE
+
     Arrived,              // destination reached: stopped until line mode is switched off and on again
     Stopped               // error stop: same
 };
@@ -181,11 +276,23 @@ enum class NavDir { Left, Right };
 struct Hold { bool on; uint32_t since; };   // "true continuously for N ms" helper
 
 static NavState    s_state             = NavState::Idle;
-static NavState    s_resume_state      = NavState::FollowToJunction;   // where to go after a bypass
 static uint32_t    s_state_start_ms    = 0;
-static NavDir      s_bypass_dir        = NavDir::Right;
 static NavDir      s_junction_turn     = NavDir::Right;
 static uint32_t    s_junction_ignore_until_ms = 0;
+static char        s_route_dest        = 'A';     // location taken at the junction
+static bool        s_wait_logged       = false;
+
+static Hold        s_bar_hold, s_lost_line_hold, s_front_hold;
+static NavState    s_resume_state      = NavState::FollowToJunction;   // where to go after a pause
+static uint32_t    s_obstacle_ignore_until_ms = 0;
+
+// Shared with the web server task
+static std::atomic<int>  s_status_code{0};      // NavState, read by control_journey_status()
+static std::atomic<bool> s_play_req{false};     // Play pressed on the web page
+static std::atomic<bool> s_pause_req{false};    // Stop pressed on the web page
+
+#if NAV_OBSTACLE_AVOIDANCE
+static NavDir      s_bypass_dir        = NavDir::Right;
 static int         s_side_recheck      = 0;
 
 // Path record while going round the obstacle (time driven at constant speed)
@@ -202,13 +309,14 @@ static int         s_search_round      = 0;
 static int         s_search_phase      = 0;   // 0 sweep, 1 sweep back, 2 re-centre, 3 creep
 static uint32_t    s_search_phase_ms   = 0;
 
-static Hold        s_front_hold, s_bar_hold, s_lost_line_hold, s_wall_lost_hold, s_inner_hold, s_blocked_hold;
+static Hold        s_wall_lost_hold, s_inner_hold, s_blocked_hold;
+#endif  // NAV_OBSTACLE_AVOIDANCE
 
 static uint32_t nav_millis() {
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-static void nav_delay(uint32_t ms) {
+static inline void nav_delay(uint32_t ms) {
     vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
@@ -226,22 +334,31 @@ static bool nav_hold(Hold &h, bool cond, uint32_t ms) {
 }
 
 static void nav_reset_holds() {
-    s_front_hold.on = s_bar_hold.on = s_lost_line_hold.on = false;
+    s_bar_hold.on = s_lost_line_hold.on = s_front_hold.on = false;
+#if NAV_OBSTACLE_AVOIDANCE
     s_wall_lost_hold.on = s_inner_hold.on = s_blocked_hold.on = false;
+#endif
 }
 
 static const char *nav_state_name(NavState s) {
     switch (s) {
         case NavState::Idle:                return "IDLE";
         case NavState::FollowToJunction:    return "FOLLOW_TO_JUNCTION";
+        case NavState::RollOntoJunction:    return "ROLL_ONTO_JUNCTION";
+        case NavState::JunctionWait:        return "JUNCTION_WAIT";
+        case NavState::ObstaclePause:       return "OBSTACLE_PAUSE";
+        case NavState::UserPause:           return "USER_PAUSE";
         case NavState::TurnAtJunction:      return "TURN_AT_JUNCTION";
         case NavState::FollowToDestination: return "FOLLOW_TO_DESTINATION";
+#if NAV_OBSTACLE_AVOIDANCE
         case NavState::CheckSides:          return "CHECK_SIDES";
         case NavState::TurnOut:             return "TURN_OUT";
         case NavState::Contour:             return "CONTOUR";
         case NavState::ReturnToLine:        return "RETURN_TO_LINE";
         case NavState::SearchForLine:       return "SEARCH_FOR_LINE";
         case NavState::AlignWithLine:       return "ALIGN_WITH_LINE";
+#endif  // NAV_OBSTACLE_AVOIDANCE
+
         case NavState::Arrived:             return "ARRIVED";
         default:                            return "STOPPED";
     }
@@ -249,72 +366,121 @@ static const char *nav_state_name(NavState s) {
 
 static void nav_change_state(NavState s) {
     s_state = s;
+    s_status_code.store((int)s);
     s_state_start_ms = nav_millis();
     nav_reset_holds();
     ESP_LOGI(TAG, "State -> %s", nav_state_name(s));
 }
 
+#if NAV_OBSTACLE_AVOIDANCE
 static NavDir nav_opposite(NavDir d) {
     return (d == NavDir::Left) ? NavDir::Right : NavDir::Left;
 }
+
+#endif  // NAV_OBSTACLE_AVOIDANCE
 
 static void nav_turn_dir(NavDir d) {
     nav_turn(d == NavDir::Left);
 }
 
-
+// Error stop: say why. Stays stopped until line mode is switched off and on again.
 static void nav_enter_stopped(const char *reason, const NavInputs &in) {
     nav_stop();
     ESP_LOGE(TAG, "STOPPED: %s (front %d, left %d, right %d cm)", reason, in.front_cm, in.left_cm, in.right_cm);
+    robot_state_set_target_location(DeliveryLocation::NONE);   // the next run needs a new pick
     nav_change_state(NavState::Stopped);
 }
 
 static void nav_arrived(char destination) {
     nav_stop();
     ESP_LOGI(TAG, "Arrived at location %c", destination);
+    robot_state_set_target_location(DeliveryLocation::NONE);   // the next run needs a new pick
     nav_change_state(NavState::Arrived);
 }
 
+// ---- Normal line following ----
+// The car keeps moving forward all the time and steers by slowing the wheel on the side where the line is.
+// (The old version stopped and spun on the spot at every correction, so it swung from side to side
+// and almost never drove forward.)
+#if NAV_DEBUG_LINE
+static uint32_t s_dbg_ms = 0;
+#endif
 
-static void nav_follow_line(const NavInputs &in, bool all_black_goes_straight) {
+static void nav_follow_line(const NavInputs &in) {
     bool l = in.ir_left, m = in.ir_mid, r = in.ir_right;
 
-    if (m && !l && !r) {
-        nav_drive(g_speed, g_speed);
-    } else if (l && m && r && all_black_goes_straight) {
-        nav_drive(g_slow, g_slow);
+    int fast   = g_speed * NAV_FOLLOW_SPEED_PCT / 100;
+    int gentle = fast * NAV_STEER_GENTLE_PCT / 100;     // inner wheel, small correction
+    int sharp  = fast * NAV_STEER_SHARP_PCT / 100;      // inner wheel, big correction
+    const char *act;
+
+    if (l && m && r) {
+        act = "ALL BLACK, STRAIGHT";                    // wide line or a bar: keep going straight
+        nav_drive(fast, fast);
+    } else if (m && !l && !r) {
+        act = "FORWARD";
+        nav_drive(fast, fast);
     } else if (l && m) {
-        nav_turn(true);
-    } else if (r && m) {
-        nav_turn(false);
+        act = "STEER LEFT (small)";
+        nav_drive(gentle, fast);
+    } else if (m && r) {
+        act = "STEER RIGHT (small)";
+        nav_drive(fast, gentle);
     } else if (l) {
-        nav_turn(true);
+        act = "STEER LEFT (big)";
+        nav_drive(sharp, fast);
     } else if (r) {
-        nav_turn(false);
+        act = "STEER RIGHT (big)";
+        nav_drive(fast, sharp);
     } else {
-        nav_drive(g_slow, g_slow);
+        act = "NO LINE (holding, will stop)";
     }
+
+#if NAV_DEBUG_LINE
+    uint32_t now = nav_millis();
+    if (now - s_dbg_ms >= 300) {
+        s_dbg_ms = now;
+        ESP_LOGI(TAG, "IR L%d M%d R%d -> %s", (int)l, (int)m, (int)r, act);
+    }
+#else
+    (void)act;
+#endif
 }
 
 // ---- Junction ----
 static void nav_take_junction(char dest) {
+    s_route_dest = dest;
     ESP_LOGI(TAG, "Junction: location %c -> %s", dest,
              dest == 'B' ? "turn right" : (dest == 'C' ? "turn left" : "straight on"));
-
-    
-    nav_drive(g_slow, g_slow);
-    nav_delay(NAV_JUNCTION_ROLL_MS);
-    nav_stop();
-
-    if (dest == 'B' || dest == 'C') {
-        s_junction_turn = (dest == 'B') ? NavDir::Right : NavDir::Left;
-        nav_change_state(NavState::TurnAtJunction);
-    } else {
-        s_junction_ignore_until_ms = nav_millis() + NAV_JUNCTION_IGNORE_MS;
-        nav_change_state(NavState::FollowToDestination);
-    }
+    nav_change_state(NavState::RollOntoJunction);   // roll on until the wheels are over the junction
 }
-static bool nav_check_obstacle(const NavInputs &in) {
+
+// ---- OBSTACLE INTERRUPT (stop and notify) ----
+// Something close ahead for a moment: stop the car and tell the web page (control_journey_status() now
+// returns "obstacle"). The car waits in ObstaclePause until Play is pressed. nav_step() calls this before
+// anything else in every state where the car is driving along the line.
+static bool nav_obstacle_stop_interrupt(const NavInputs &in) {
+    if (nav_millis() < s_obstacle_ignore_until_ms) {      // just resumed: the reading may be from before
+        s_front_hold.on = false;
+        return false;
+    }
+    if (nav_hold(s_front_hold, in.front_cm <= NAV_OBSTACLE_CM, NAV_OBSTACLE_CONFIRM_MS)) {
+        nav_stop();
+        s_resume_state = s_state;
+        s_play_req.store(false);
+        ESP_LOGW(TAG, "OBSTACLE at %d cm: stopped, press Play on the web page to continue", in.front_cm);
+        nav_change_state(NavState::ObstaclePause);
+        return true;
+    }
+    return false;
+}
+
+#if NAV_OBSTACLE_AVOIDANCE
+// ---- Obstacle bypass ----
+// THE OBSTACLE INTERRUPT. Something close ahead for a while: stop and start a bypass, remembering
+// where to resume. nav_step() calls this before anything else in every state where the car is
+// driving along the line.
+static bool nav_obstacle_interrupt(const NavInputs &in) {
     if (nav_hold(s_front_hold, in.front_cm <= NAV_OBSTACLE_CM, NAV_OBSTACLE_CONFIRM_MS)) {
         nav_stop();
         s_resume_state = s_state;
@@ -327,10 +493,10 @@ static bool nav_check_obstacle(const NavInputs &in) {
 }
 
 static int nav_heading_index() {
-    return ((s_heading_quarters % 4) + 4) % 4;  
+    return ((s_heading_quarters % 4) + 4) % 4;   // 0 = original heading, 1 = toward the bypass side, 3 = back toward the line
 }
 
-
+// Add time driven to the axis the car is currently heading along
 static void nav_odo_add(uint32_t ms) {
     int32_t t = (int32_t)ms;
 
@@ -342,6 +508,7 @@ static void nav_odo_add(uint32_t ms) {
     }
 }
 
+// Turn ~90 degrees (blocking is fine here: the sensors are read by their own tasks)
 static void nav_pivot(NavDir d) {
     nav_turn_dir(d);
     nav_delay(d == NavDir::Left ? NAV_TURN_LEFT_MS : NAV_TURN_RIGHT_MS);
@@ -351,6 +518,7 @@ static void nav_pivot(NavDir d) {
     ESP_LOGI(TAG, "Turn %s, heading index %d", d == NavDir::Left ? "left" : "right", nav_heading_index());
 }
 
+// Start looking at a new face of the obstacle
 static void nav_reset_face() {
     s_side_seen = false;
     s_face_start_ms = nav_millis();
@@ -359,16 +527,17 @@ static void nav_reset_face() {
     s_inner_hold.on = false;
 }
 
+// Keep the obstacle about NAV_SAFE_CM away using gentle differential steering
 static void nav_steer_to_safe_distance(int side_cm) {
     bool wall_on_left = (s_bypass_dir == NavDir::Right);
-    int  error        = side_cm - NAV_SAFE_CM;   
+    int  error        = side_cm - NAV_SAFE_CM;   // + = too far from the obstacle
     int  left_speed   = g_speed;
     int  right_speed  = g_speed;
 
-    if (error > NAV_SAFE_TOLERANCE_CM) {            
+    if (error > NAV_SAFE_TOLERANCE_CM) {            // too far: curve toward the obstacle
         if (wall_on_left) left_speed  = g_slow;
         else              right_speed = g_slow;
-    } else if (error < -NAV_SAFE_TOLERANCE_CM) {
+    } else if (error < -NAV_SAFE_TOLERANCE_CM) {    // too close: curve away from it
         if (wall_on_left) right_speed = g_slow;
         else              left_speed  = g_slow;
     }
@@ -376,6 +545,7 @@ static void nav_steer_to_safe_distance(int side_cm) {
     nav_drive(left_speed, right_speed);
 }
 
+// Pick the clearer side. If both look blocked, look again a few times before giving up.
 static void nav_choose_bypass(const NavInputs &in) {
     int l = in.left_cm;
     int r = in.right_cm;
@@ -394,7 +564,7 @@ static void nav_choose_bypass(const NavInputs &in) {
             nav_enter_stopped("both sides blocked", in);
         } else {
             ESP_LOGW(TAG, "Both sides blocked, looking again (%d/%d)", s_side_recheck, NAV_SIDE_RECHECKS);
-            nav_delay(NAV_SIDE_RECHECK_DELAY_MS);  
+            nav_delay(NAV_SIDE_RECHECK_DELAY_MS);   // stay in CheckSides; the next tick has fresh readings
         }
         return;
     }
@@ -403,7 +573,7 @@ static void nav_choose_bypass(const NavInputs &in) {
     nav_change_state(NavState::TurnOut);
 }
 
-
+// An IR sensor just saw the line again: roll on until the wheels are over it, then align
 static void nav_line_found() {
     nav_drive(g_slow, g_slow);
     nav_delay(NAV_AXLE_TO_LINE_MS);
@@ -418,8 +588,13 @@ static void nav_start_search() {
     nav_change_state(NavState::SearchForLine);
 }
 
+#endif  // NAV_OBSTACLE_AVOIDANCE
 
+// Drop any run in progress without touching the motors (manual mode, power off, unlock)
 static void nav_reset() {
+    s_wait_logged = false;
+    s_play_req.store(false);
+    s_pause_req.store(false);
     if (s_state != NavState::Idle) {
         ESP_LOGI(TAG, "Run dropped (manual mode, power off or unlock)");
         nav_change_state(NavState::Idle);
@@ -430,16 +605,55 @@ static void nav_step(const NavInputs &in) {
     uint32_t now     = nav_millis();
     uint32_t elapsed = now - s_state_start_ms;
 
+    // ---- Stop pressed on the web page ----
+    bool pause_req      = s_pause_req.exchange(false);
+    bool along_the_line = (s_state == NavState::FollowToJunction ||
+                           s_state == NavState::RollOntoJunction ||
+                           s_state == NavState::FollowToDestination);
+
+    if (pause_req && (along_the_line || s_state == NavState::TurnAtJunction)) {
+        nav_stop();
+        s_resume_state = s_state;
+        s_play_req.store(false);
+        ESP_LOGI(TAG, "Stop pressed: journey paused");
+        nav_change_state(NavState::UserPause);
+        return;
+    }
+
+    // ---- OBSTACLE INTERRUPT: has priority over line following, the junction and the end-of-line stop ----
+    if (along_the_line) {
+#if NAV_OBSTACLE_AVOIDANCE
+        if (nav_obstacle_interrupt(in)) {      // go-around version (switched off)
+            return;
+        }
+#else
+        if (nav_obstacle_stop_interrupt(in)) { // stop and notify the web page
+            return;
+        }
+#endif
+    }
+
     switch (s_state) {
 
-
+    // 1. Line mode is on: wait for a location to be picked on the web page, then start the run.
+    //    The movement log restarts here so the return trip after the delivery leads back to where this run began.
     case NavState::Idle:
-        ESP_LOGI(TAG, "Run started: A = straight, B = right, C = left at the junction");
+        if (in.destination == 0) {
+            nav_stop();
+            if (!s_wait_logged) {
+                ESP_LOGI(TAG, "Waiting for a location: press \"Pick a Location\" on the web page");
+                s_wait_logged = true;
+            }
+            break;
+        }
+        s_wait_logged = false;
+        ESP_LOGI(TAG, "Location %c picked, run started: A = straight, B = right, C = left at the junction", in.destination);
         movement_log_reset();
         s_junction_ignore_until_ms = now + NAV_START_IGNORE_MS;
         nav_change_state(NavState::FollowToJunction);
         break;
 
+    // 2/3. Follow the line. Before the junction a black bar is the junction; after it, it is the destination.
     case NavState::FollowToJunction:
     case NavState::FollowToDestination: {
         bool after_junction = (s_state == NavState::FollowToDestination);
@@ -447,32 +661,59 @@ static void nav_step(const NavInputs &in) {
         bool all_black      = in.ir_left && in.ir_mid && in.ir_right;
         bool all_white      = !in.ir_left && !in.ir_mid && !in.ir_right;
 
-        if (nav_check_obstacle(in)) {
-            break;
-        }
-
         if (!ignoring && nav_hold(s_bar_hold, all_black, NAV_JUNCTION_CONFIRM_MS)) {
             if (after_junction) {
-                nav_arrived(in.destination);          
+                nav_arrived(s_route_dest);            // destination marker
+            } else if (in.destination != 0) {
+                nav_take_junction(in.destination);    // the location picked right now
             } else {
-                nav_take_junction(in.destination);    
+                nav_stop();
+                ESP_LOGI(TAG, "Junction reached, no location picked: waiting");
+                nav_change_state(NavState::JunctionWait);
             }
             break;
         }
 
         if (nav_hold(s_lost_line_hold, all_white, NAV_LINE_LOST_STOP_MS)) {
             if (after_junction) {
-                nav_arrived(in.destination);          
+                ESP_LOGI(TAG, "End of line");
+                nav_arrived(s_route_dest);
             } else {
-                nav_enter_stopped("line lost before the junction", in);
+                nav_enter_stopped("no line before the junction", in);
             }
             break;
         }
 
-        nav_follow_line(in, ignoring);
+        nav_follow_line(in);
         break;
     }
 
+    // At the junction with no location picked: wait for a pick
+    case NavState::JunctionWait:
+        nav_stop();
+        if (in.destination != 0) {
+            nav_take_junction(in.destination);
+        }
+        break;
+
+    // Roll on until the wheels are over the junction, then go straight on or turn onto the branch.
+    case NavState::RollOntoJunction:
+        nav_drive(g_slow, g_slow);
+
+        if (elapsed >= NAV_JUNCTION_ROLL_MS) {
+            nav_stop();
+
+            if (s_route_dest == 'B' || s_route_dest == 'C') {
+                s_junction_turn = (s_route_dest == 'B') ? NavDir::Right : NavDir::Left;
+                nav_change_state(NavState::TurnAtJunction);
+            } else {
+                s_junction_ignore_until_ms = now + NAV_JUNCTION_IGNORE_MS;
+                nav_change_state(NavState::FollowToDestination);
+            }
+        }
+        break;
+
+    // Turn onto the branch: leave the old line first, then stop when the middle sensor finds the branch
     case NavState::TurnAtJunction:
         nav_turn_dir(s_junction_turn);
 
@@ -486,23 +727,27 @@ static void nav_step(const NavInputs &in) {
         }
         break;
 
-
+#if NAV_OBSTACLE_AVOIDANCE
+    // 4. Bypass: look left and right, choose the freer side
     case NavState::CheckSides:
         nav_stop();
         nav_choose_bypass(in);
         break;
 
+    // 5. Bypass: turn toward the free side and start a fresh path record
     case NavState::TurnOut:
         s_lateral_ms = 0;
         s_forward_ms = 0;
         s_heading_quarters = 0;
         s_inner_corners = 0;
 
-        nav_pivot(s_bypass_dir);   
+        nav_pivot(s_bypass_dir);   // heading index becomes 1: now driving away from the line
         nav_reset_face();
         nav_change_state(NavState::Contour);
         break;
 
+    // 6. Bypass: go round the obstacle, keeping NAV_SAFE_CM from it.
+    //    Every tick the time driven is added to the path record.
     case NavState::Contour: {
         nav_odo_add(now - s_last_contour_ms);
         s_last_contour_ms = now;
@@ -520,7 +765,7 @@ static void nav_step(const NavInputs &in) {
         }
         bool wall_gone = nav_hold(s_wall_lost_hold, side > NAV_LOST_CM, NAV_LOST_CONFIRM_MS);
 
-
+        // Inner corner: something ahead on this face. Turn away from the obstacle and carry on.
         if (nav_hold(s_inner_hold, front <= NAV_CONTOUR_FRONT_CM, NAV_INNER_CONFIRM_MS)) {
             nav_stop();
             s_inner_corners++;
@@ -535,19 +780,21 @@ static void nav_step(const NavInputs &in) {
             break;
         }
 
-
+        // Outer corner: the obstacle's edge has passed the wall-side sensor.
+        // If this face was never seen (thin obstacle), assume it is passed after NAV_SEEN_TIMEOUT_MS.
         bool edge_passed = (s_side_seen && wall_gone) ||
                            (!s_side_seen && (now - s_face_start_ms) > NAV_SEEN_TIMEOUT_MS);
 
         if (edge_passed) {
             ESP_LOGI(TAG, "Edge passed, rolling on then turning around it");
             nav_drive(g_speed, g_speed);
-            nav_delay(NAV_CORNER_CLEAR_MS);      
+            nav_delay(NAV_CORNER_CLEAR_MS);          // let the whole car clear the edge
             nav_odo_add(NAV_CORNER_CLEAR_MS);
-            nav_pivot(nav_opposite(s_bypass_dir));   
+            nav_pivot(nav_opposite(s_bypass_dir));   // around the corner, toward the obstacle's next face
             nav_reset_face();
 
             if (nav_heading_index() == 3) {
+                // Facing back toward the line: the obstacle is passed. Use the record to retrace.
                 s_out_leg_ms = (s_lateral_ms > 0) ? (uint32_t)s_lateral_ms : 0;
                 ESP_LOGI(TAG, "Path record: sideways %d ms (~%d cm), forward %d ms (~%d cm)",
                          (int)s_lateral_ms, (int)(s_lateral_ms * NAV_APPROX_SPEED_CM_PER_S / 1000.0f),
@@ -561,6 +808,8 @@ static void nav_step(const NavInputs &in) {
         break;
     }
 
+    // 7. Bypass: retrace the recorded sideways distance until an IR sensor sees the line.
+    //    Fast for most of the distance, slow near where the line should be.
     case NavState::ReturnToLine: {
         if (in.ir_left || in.ir_mid || in.ir_right) {
             ESP_LOGI(TAG, "Line found on the return leg after %u ms (recorded %u ms)",
@@ -588,6 +837,8 @@ static void nav_step(const NavInputs &in) {
         break;
     }
 
+    // 8. Bypass: line not where expected. Keep searching for NAV_SEARCH_TIMEOUT_MS, then stop.
+    //    Turn one way, turn back past centre, re-centre, creep forward; the sweeps widen each round.
     case NavState::SearchForLine: {
         if (in.ir_left || in.ir_mid || in.ir_right) {
             ESP_LOGI(TAG, "Line found by the search (round %d)", s_search_round);
@@ -630,6 +881,8 @@ static void nav_step(const NavInputs &in) {
         }
         break;
     }
+
+    // 9. Bypass: turn back to the original heading, then carry on with the route
     case NavState::AlignWithLine:
         nav_turn_dir(s_bypass_dir);
 
@@ -643,6 +896,20 @@ static void nav_step(const NavInputs &in) {
         }
         break;
 
+#endif  // NAV_OBSTACLE_AVOIDANCE
+
+    // Paused by the obstacle interrupt or by the Stop button: wait for Play on the web page
+    case NavState::ObstaclePause:
+    case NavState::UserPause:
+        nav_stop();
+        if (s_play_req.exchange(false)) {
+            ESP_LOGI(TAG, "Play pressed: continuing the journey");
+            s_obstacle_ignore_until_ms = now + NAV_RESUME_GRACE_MS;
+            nav_change_state(s_resume_state);
+        }
+        break;
+
+    // 10. Finished or stopped: stay put until line mode is switched off and on again
     case NavState::Arrived:
     case NavState::Stopped:
         nav_stop();
@@ -650,6 +917,28 @@ static void nav_step(const NavInputs &in) {
     }
 }
 
+// ===========================================================================
+// Used by web_server.cpp (declared there, so no header has to change)
+// ===========================================================================
+// One word describing the journey, polled by the web page
+const char *control_journey_status() {
+    switch ((NavState)s_status_code.load()) {
+        case NavState::Idle:          return "idle";       // line mode on, waiting for a location
+        case NavState::JunctionWait:  return "waiting";    // at the junction, waiting for a location
+        case NavState::ObstaclePause: return "obstacle";
+        case NavState::UserPause:     return "paused";
+        case NavState::Arrived:       return "arrived";
+        case NavState::Stopped:       return "stopped";
+        default:                      return "running";
+    }
+}
+
+void control_request_play()  { s_play_req.store(true); }
+void control_request_pause() { s_pause_req.store(true); }
+
+// ===========================================================================
+// Manual mode (unchanged)
+// ===========================================================================
 #define MANUAL_CMD_TIMEOUT_MS 400
 
 static void run_manual() {
@@ -675,8 +964,8 @@ static void run_manual() {
 void control_task_init() {
     movement_log_init();
 
-    g_speed = (SPEED_FORWARD > 255) ? 255 : SPEED_FORWARD;
-    g_turn  = (SPEED_TURN    > 255) ? 255 : SPEED_TURN;
+    g_speed = ((SPEED_FORWARD > 255) ? 255 : SPEED_FORWARD) * NAV_SPEED_PCT / 100;
+    g_turn  = ((SPEED_TURN    > 255) ? 255 : SPEED_TURN)    * NAV_SPEED_PCT / 100;
     g_slow  = g_speed * 70 / 100;
 }
 

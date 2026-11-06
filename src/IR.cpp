@@ -1,33 +1,29 @@
-#include "IR.h"
+﻿#include "IR.h"
 #include "Bot_config.h"
+#include "Bot_state.h"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-void lineSensor(){
-    gpio_config_t config = {};
-    config.pin_bit_mask = (1ULL << rightSensor ) | (1ULL << midSensor) | (1ULL << leftSensor);
-    config.mode = GPIO_MODE_INPUT;
-    config.pull_up_en = GPIO_PULLUP_DISABLE;
-    config.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    config.intr_type = GPIO_INTR_DISABLE;
-    gpio_config(&config);
+static gpio_num_t s_pins[3] = { IR_LEFT_PIN, IR_CENTER_PIN, IR_RIGHT_PIN };
 
+void line_sensor_init() {
+    for (int i = 0; i < 3; i++) {
+        gpio_config_t conf = {};
+        conf.pin_bit_mask = (1ULL << s_pins[i]);
+        conf.mode = GPIO_MODE_INPUT;
+        conf.pull_up_en = GPIO_PULLUP_DISABLE;
+        conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        conf.intr_type = GPIO_INTR_DISABLE;
+        gpio_config(&conf);
+    }
 }
 
-int ir_read_right(void) { 
-    return gpio_get_level(rightSensor);
- }
-int ir_read_left(void)  { 
-    return gpio_get_level(leftSensor); 
- }
-int ir_read_mid(void)   { 
-    return gpio_get_level(midSensor);          
+static bool read_detected(gpio_num_t pin) {
+    int level = gpio_get_level(pin);
+    return IR_ACTIVE_LOW ? (level == 0) : (level == 1);
 }
 
-<<<<<<< HEAD
-bool ir_line_detected(void)
-{
-    return ir_read_left() || ir_read_mid() || ir_read_right();
-=======
 void line_sensor_task(void *pvParameters) {
     (void)pvParameters;
     while (1) {
@@ -45,5 +41,4 @@ LinePattern read_line_pattern() {
     p.center = read_detected(s_pins[1]);
     p.right  = read_detected(s_pins[2]);
     return p;
->>>>>>> 99be0c6 (Hopefully Works)
 }
