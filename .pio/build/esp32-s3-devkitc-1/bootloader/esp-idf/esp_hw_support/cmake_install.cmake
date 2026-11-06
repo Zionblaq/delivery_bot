@@ -34,6 +34,6 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/.pio/build/esp32-s3-devkitc-1/bootloader/esp-idf/esp_hw_support/port/esp32s3/cmake_install.cmake")
+  include("C:/Users/Zion/Documents/PlatformIO/Projects/Delivery_Bot/.pio/build/esp32-s3-devkitc-1/bootloader/esp-idf/esp_hw_support/port/esp32s3/cmake_install.cmake")
 endif()
 

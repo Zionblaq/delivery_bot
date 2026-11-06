@@ -1,8 +1,8 @@
 # Additional clean files
 
 file(REMOVE_RECURSE
-  "LineFollowing.bin"
-  "LineFollowing.map"
+  "DeliveryBot.bin"
+  "DeliveryBot.map"
   "bootloader\\bootloader.bin"
   "bootloader\\bootloader.elf"
   "bootloader\\bootloader.map"

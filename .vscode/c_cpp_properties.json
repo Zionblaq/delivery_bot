@@ -8,11 +8,11 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/include",
-                "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src",
+                "C:/Users/Zion/Documents/PlatformIO/Projects/Delivery_Bot/include",
+                "C:/Users/Zion/Documents/PlatformIO/Projects/Delivery_Bot/src",
                 "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/xtensa/include",
                 "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/xtensa/esp32s3/include",
-                "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/.pio/build/esp32-s3-devkitc-1/config",
+                "C:/Users/Zion/Documents/PlatformIO/Projects/Delivery_Bot/.pio/build/esp32-s3-devkitc-1/config",
                 "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/newlib/platform_include",
                 "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/freertos/FreeRTOS-Kernel/include",
                 "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/freertos/FreeRTOS-Kernel/portable/xtensa/include",
@@ -153,11 +153,11 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/include",
-                    "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/src",
+                    "C:/Users/Zion/Documents/PlatformIO/Projects/Delivery_Bot/include",
+                    "C:/Users/Zion/Documents/PlatformIO/Projects/Delivery_Bot/src",
                     "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/xtensa/include",
                     "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/xtensa/esp32s3/include",
-                    "C:/Users/Zion/Documents/PlatformIO/Projects/LineFollowing/.pio/build/esp32-s3-devkitc-1/config",
+                    "C:/Users/Zion/Documents/PlatformIO/Projects/Delivery_Bot/.pio/build/esp32-s3-devkitc-1/config",
                     "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/newlib/platform_include",
                     "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/freertos/FreeRTOS-Kernel/include",
                     "C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/freertos/FreeRTOS-Kernel/portable/xtensa/include",

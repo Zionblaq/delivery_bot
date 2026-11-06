@@ -1,4 +1,4 @@
-/* * Data converted from C:\Users\Zion\Documents\PlatformIO\Projects\LineFollowing\.pio\build\esp32-s3-devkitc-1\x509_crt_bundle
+/* * Data converted from C:\Users\Zion\Documents\PlatformIO\Projects\Delivery_Bot\.pio\build\esp32-s3-devkitc-1\x509_crt_bundle
  */
 .data
 .section .rodata.embedded

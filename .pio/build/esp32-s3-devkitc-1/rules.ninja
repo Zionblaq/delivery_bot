@@ -6,7 +6,7 @@
 # It is included in the main 'build.ninja'.
 
 # =============================================================================
-# Project: LineFollowing
+# Project: DeliveryBot
 # Configuration: 
 # =============================================================================
 # =============================================================================
@@ -22,7 +22,7 @@ rule CUSTOM_COMMAND
 #############################################
 # Rule for compiling C files.
 
-rule C_COMPILER__LineFollowing.2eelf
+rule C_COMPILER__DeliveryBot.2eelf
   depfile = $DEP_FILE
   deps = gcc
   command = C:\Users\Zion\.platformio\packages\toolchain-xtensa-esp32s3\bin\xtensa-esp32s3-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
@@ -32,7 +32,7 @@ rule C_COMPILER__LineFollowing.2eelf
 #############################################
 # Rule for linking CXX executable.
 
-rule CXX_EXECUTABLE_LINKER__LineFollowing.2eelf
+rule CXX_EXECUTABLE_LINKER__DeliveryBot.2eelf
   command = cmd.exe /C "$PRE_LINK && C:\Users\Zion\.platformio\packages\toolchain-xtensa-esp32s3\bin\xtensa-esp32s3-elf-g++.exe  $FLAGS  $LINK_FLAGS @$RSP_FILE  -o $TARGET_FILE  && $POST_BUILD"
   description = Linking CXX executable $TARGET_FILE
   rspfile = $RSP_FILE
@@ -1477,7 +1477,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_src
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = C:\Users\Zion\.platformio\packages\tool-cmake@3.16.4\bin\cmake.exe -SC:\Users\Zion\Documents\PlatformIO\Projects\LineFollowing -BC:\Users\Zion\Documents\PlatformIO\Projects\LineFollowing\.pio\build\esp32-s3-devkitc-1
+  command = C:\Users\Zion\.platformio\packages\tool-cmake@3.16.4\bin\cmake.exe -SC:\Users\Zion\Documents\PlatformIO\Projects\Delivery_Bot -BC:\Users\Zion\Documents\PlatformIO\Projects\Delivery_Bot\.pio\build\esp32-s3-devkitc-1
   description = Re-running CMake...
   generator = 1
 
