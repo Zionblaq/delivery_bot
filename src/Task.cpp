@@ -11,43 +11,15 @@
 #include <atomic>
 
 static const char *TAG = "CONTROL";
-
-// ===========================================================================
-// Line following with location choice: A = straight, B = right, C = left.
-// Everything lives in this file; no other file needs to change.
-// ===========================================================================
-
-// ---- Things to flip if the car does the opposite of what is described ----
-// 1 = swap the turn direction used for the turn at the junction (B right, C left) and for turns when going
-//     round obstacles. Your motor_turn_left() drives only the LEFT motor (IN3/IN4 = 0), which turns the car
-//     to the RIGHT, and motor_turn_right() does the opposite, so this starts at 1.
-//     Check: press Left in manual mode. If the car turns left, set this to 0.
 #define NAV_SWAP_TURNS  1
-// 1 = swap the wheel sides used for steering while following the line and going round obstacles.
-//     Set it if the car steers AWAY from the line instead of toward it.
 #define NAV_SWAP_SIDES  0
-// 1 = swap the left and right line sensors.
-//     Set it if, with the line under the car's LEFT side, the log below says "L0 M0 R1".
 #define NAV_SWAP_IR     0
-// Readings of the front-left / front-right ultrasonic sensors are scaled by this percentage.
-// Use 71 if they point 45 degrees outward, 100 if they look straight out to the sides.
 #define NAV_SIDE_SENSOR_SCALE_PCT  100
-// Percentage of the (255-capped) SPEED_FORWARD / SPEED_TURN used while line following.
-// Lower it (for example 70) if the car overshoots the line, raise it if the motors stall.
 #define NAV_SPEED_PCT  100
-// Line following: the car keeps moving forward and steers by slowing the wheel on the side of the line.
-// Speed while following the line, as a percentage of the cruise speed. Lower it if the car still swings
-// from side to side or overshoots bends.
-#define NAV_FOLLOW_SPEED_PCT  70
-// Speed of the inner wheel, as a percentage of the following speed, for a small correction
-// (line under the middle and one outer sensor) and for a big correction (line under one outer sensor only).
-// If the car does not turn enough, lower these. If it jerks or stalls on turns, raise them.
-#define NAV_STEER_GENTLE_PCT  70
-#define NAV_STEER_SHARP_PCT   20
-// 1 = print what the IR sensors see and what the car decides, about 3 times a second.
+#define NAV_FOLLOW_SPEED_PCT  100
+#define NAV_STEER_GENTLE_PCT  75
+#define NAV_STEER_SHARP_PCT   40
 #define NAV_DEBUG_LINE 1
-// OBSTACLE AVOIDANCE IS COMMENTED OUT (compiled out) while this is 0: the car does not look for obstacles,
-// go round them or search for the line. Set to 1 to bring all of it back.
 #define NAV_OBSTACLE_AVOIDANCE 0
 
 // ---- Tuning (all times in ms, distances in cm) ----
@@ -56,13 +28,13 @@ constexpr uint32_t NAV_PERIOD_MS                 = 10;     // control loop perio
 
 // Junction and destination
 constexpr uint32_t NAV_START_IGNORE_MS           = 500;    // ignore black bars for this long after a run starts
-constexpr uint32_t NAV_JUNCTION_CONFIRM_MS       = 40;     // all three IR sensors black this long = junction / marker
+constexpr uint32_t NAV_JUNCTION_CONFIRM_MS       = 20;     // all three IR sensors black this long = junction / marker
 constexpr uint32_t NAV_JUNCTION_ROLL_MS          = 300;    // roll onto the junction so the wheels are over it before turning
 constexpr uint32_t NAV_JUNCTION_TURN_MIN_MS      = 200;    // turn at least this long (to leave the old line) ...
 constexpr uint32_t NAV_JUNCTION_TURN_TIMEOUT_MS  = 1500;   // ... then until the middle sensor finds the branch, or give up
 constexpr uint32_t NAV_JUNCTION_IGNORE_MS        = 1000;   // after the junction, ignore bars while the car clears it
 constexpr uint32_t NAV_LINE_LOST_STOP_MS         = 200;    // all IR white this long (and no obstacle) = stop
-
+constexpr int NAV_JUNCTION_TURN_PCT              = 70;
 // Obstacle: stop and notify the web page
 constexpr int      NAV_OBSTACLE_CM               = 25;     // front sensor stops the car at this distance
 constexpr uint32_t NAV_OBSTACLE_CONFIRM_MS       = 120;    // ... if it stays this close for this long
@@ -105,10 +77,7 @@ constexpr float    NAV_APPROX_SPEED_CM_PER_S     = 25.0f;  // calibrate; used fo
 
 }  // namespace
 
-// ===========================================================================
-// Movement log. Every move, manual or automatic, is recorded as (type, duration) so that
-// movement_log_retrace() can drive the same path backwards after a delivery.
-// ===========================================================================
+
 static MoveDir s_current_dir = MoveDir::FORWARD;
 static bool s_moving = false;
 static int64_t s_segment_start_us = 0;
@@ -150,18 +119,11 @@ static void set_active_direction(MoveDir dir, int speed) {
         case MoveDir::PIVOT_RIGHT: motor_turn_right(speed); break;
     }
 }
-
-// ===========================================================================
-// Navigator: motors
-// ===========================================================================
-// motor.cpp uses 8-bit PWM (0-255) and clamps anything higher, so SPEED_FORWARD 300 and SPEED_TURN 500
-// both end up as 255. The navigator needs a real gap between cruise and slow speed (that is how it
-// steers round an obstacle), so the slow speed is derived from cruise.
 static int g_speed = 500;
 static int g_turn  = 500;
 static int g_slow  = 300;
 
-// Both wheels forward, each at its own speed (gentle steering). Logged as straight driving.
+
 static void nav_drive(int left_speed, int right_speed) {
 #if NAV_SWAP_SIDES
     int t = left_speed; left_speed = right_speed; right_speed = t;
@@ -173,28 +135,25 @@ static void nav_drive(int left_speed, int right_speed) {
 }
 
 // Turn using the project's own turn movement, so the return-trip replay stays consistent
-static void nav_turn(bool left) {
+static void nav_turn(bool left, int speed) {
 #if NAV_SWAP_TURNS
     left = !left;
 #endif
-    set_active_direction(left ? MoveDir::LEFT : MoveDir::RIGHT, g_turn);
+    set_active_direction(left ? MoveDir::LEFT : MoveDir::RIGHT, speed);
 }
 
 static void nav_stop() {
     stop_and_flush();
 }
 
-// ===========================================================================
-// Navigator: inputs
-// ===========================================================================
 struct NavInputs {
-    int  front_cm;      // 999 = no echo
+    int  front_cm;     
     int  left_cm;
     int  right_cm;
-    bool ir_left;       // true = black
+    bool ir_left;       
     bool ir_mid;
     bool ir_right;
-    char destination;   // 'A' straight, 'B' right, 'C' left, 0 = nothing picked
+    char destination; 
 };
 
 static int cm_or_none(float v) {
@@ -232,32 +191,16 @@ static void nav_read_inputs(NavInputs &in) {
     }
 }
 
-// ===========================================================================
-// Navigator: state machine
-//   Idle -> FollowToJunction -> (A: straight | B: turn right | C: turn left)
-//        -> FollowToDestination -> Arrived
-//
-// The destination is picked on the web page ("Pick a Location"). The car waits until one is picked.
-//
-// NO LINE: the car does not search. It stops (end of line after the junction = arrived,
-// line lost before the junction = stopped).
-//
-// OBSTACLE: an interrupt checked before anything else while the car drives along the line. An obstacle ahead
-// stops the car and the web page is notified. The car waits until Play is pressed on the web page.
-// The Stop button on the web page pauses the journey the same way.
-//
-// GOING ROUND OBSTACLES (recording the distance, finding the line again) is commented out below with
-// NAV_OBSTACLE_AVOIDANCE 0. Every part of it sits between "#if NAV_OBSTACLE_AVOIDANCE" and "#endif".
-// ===========================================================================
+
 enum class NavState {
-    Idle,                 // line mode just started
-    FollowToJunction,     // line following until the junction
-    RollOntoJunction,     // rolling forward so the wheels are over the junction
-    JunctionWait,         // at the junction but no location picked
-    ObstaclePause,        // stopped by the obstacle interrupt, waiting for Play on the web page
-    UserPause,            // stopped by the Stop button on the web page, waiting for Play
-    TurnAtJunction,       // turn onto the right or left branch
-    FollowToDestination,  // line following after the junction until the end marker / end of line
+    Idle,          
+    FollowToJunction,     
+    RollOntoJunction, 
+    JunctionWait,       
+    ObstaclePause,       
+    UserPause,         
+    TurnAtJunction,    
+    FollowToDestination,  
 #if NAV_OBSTACLE_AVOIDANCE
     CheckSides,           // bypass: pick the freer side
     TurnOut,              // bypass: turn toward it and start the path record
@@ -273,11 +216,12 @@ enum class NavState {
 
 enum class NavDir { Left, Right };
 
-struct Hold { bool on; uint32_t since; };   // "true continuously for N ms" helper
+struct Hold { bool on; uint32_t since; };   
 
 static NavState    s_state             = NavState::Idle;
 static uint32_t    s_state_start_ms    = 0;
 static NavDir      s_junction_turn     = NavDir::Right;
+static bool        s_left_old_line     = false;
 static uint32_t    s_junction_ignore_until_ms = 0;
 static char        s_route_dest        = 'A';     // location taken at the junction
 static bool        s_wait_logged       = false;
@@ -379,9 +323,11 @@ static NavDir nav_opposite(NavDir d) {
 
 #endif  // NAV_OBSTACLE_AVOIDANCE
 
+#if NAV_OBSTACLE_AVOIDANCE
 static void nav_turn_dir(NavDir d) {
-    nav_turn(d == NavDir::Left);
+    nav_turn(d == NavDir::Left, g_turn);
 }
+#endif
 
 // Error stop: say why. Stays stopped until line mode is switched off and on again.
 static void nav_enter_stopped(const char *reason, const NavInputs &in) {
@@ -398,10 +344,7 @@ static void nav_arrived(char destination) {
     nav_change_state(NavState::Arrived);
 }
 
-// ---- Normal line following ----
-// The car keeps moving forward all the time and steers by slowing the wheel on the side where the line is.
-// (The old version stopped and spun on the spot at every correction, so it swung from side to side
-// and almost never drove forward.)
+
 #if NAV_DEBUG_LINE
 static uint32_t s_dbg_ms = 0;
 #endif
@@ -409,9 +352,8 @@ static uint32_t s_dbg_ms = 0;
 static void nav_follow_line(const NavInputs &in) {
     bool l = in.ir_left, m = in.ir_mid, r = in.ir_right;
 
-    int fast   = g_speed * NAV_FOLLOW_SPEED_PCT / 100;
-    int gentle = fast * NAV_STEER_GENTLE_PCT / 100;     // inner wheel, small correction
-    int sharp  = fast * NAV_STEER_SHARP_PCT / 100;      // inner wheel, big correction
+    int fast  = g_speed * NAV_FOLLOW_SPEED_PCT / 100;
+    int sharp = fast * NAV_STEER_SHARP_PCT / 100;      // inner wheel, big correction
     const char *act;
 
     if (l && m && r) {
@@ -420,12 +362,12 @@ static void nav_follow_line(const NavInputs &in) {
     } else if (m && !l && !r) {
         act = "FORWARD";
         nav_drive(fast, fast);
-    } else if (l && m) {
-        act = "STEER LEFT (small)";
-        nav_drive(gentle, fast);
-    } else if (m && r) {
-        act = "STEER RIGHT (small)";
-        nav_drive(fast, gentle);
+    // } else if (l && m) {
+    //     act = "STEER LEFT (small)";
+    //     nav_drive(gentle, fast);
+    // } else if (m && r) {
+    //     act = "STEER RIGHT (small)";
+    //     nav_drive(fast, gentle);
     } else if (l) {
         act = "STEER LEFT (big)";
         nav_drive(sharp, fast);
@@ -450,15 +392,12 @@ static void nav_follow_line(const NavInputs &in) {
 // ---- Junction ----
 static void nav_take_junction(char dest) {
     s_route_dest = dest;
+    s_left_old_line = false;
     ESP_LOGI(TAG, "Junction: location %c -> %s", dest,
              dest == 'B' ? "turn right" : (dest == 'C' ? "turn left" : "straight on"));
     nav_change_state(NavState::RollOntoJunction);   // roll on until the wheels are over the junction
 }
 
-// ---- OBSTACLE INTERRUPT (stop and notify) ----
-// Something close ahead for a moment: stop the car and tell the web page (control_journey_status() now
-// returns "obstacle"). The car waits in ObstaclePause until Play is pressed. nav_step() calls this before
-// anything else in every state where the car is driving along the line.
 static bool nav_obstacle_stop_interrupt(const NavInputs &in) {
     if (nav_millis() < s_obstacle_ignore_until_ms) {      // just resumed: the reading may be from before
         s_front_hold.on = false;
@@ -476,10 +415,6 @@ static bool nav_obstacle_stop_interrupt(const NavInputs &in) {
 }
 
 #if NAV_OBSTACLE_AVOIDANCE
-// ---- Obstacle bypass ----
-// THE OBSTACLE INTERRUPT. Something close ahead for a while: stop and start a bypass, remembering
-// where to resume. nav_step() calls this before anything else in every state where the car is
-// driving along the line.
 static bool nav_obstacle_interrupt(const NavInputs &in) {
     if (nav_hold(s_front_hold, in.front_cm <= NAV_OBSTACLE_CM, NAV_OBSTACLE_CONFIRM_MS)) {
         nav_stop();
@@ -536,7 +471,7 @@ static void nav_steer_to_safe_distance(int side_cm) {
 
     if (error > NAV_SAFE_TOLERANCE_CM) {            // too far: curve toward the obstacle
         if (wall_on_left) left_speed  = g_slow;
-        else              right_speed = g_slow;
+        else              right_spLISTENING TO THIS WHILE SLEEPING...PURE WORSHIP// MIN THEOPHILUS SUNDAYeed = g_slow;
     } else if (error < -NAV_SAFE_TOLERANCE_CM) {    // too close: curve away from it
         if (wall_on_left) right_speed = g_slow;
         else              left_speed  = g_slow;
@@ -697,14 +632,16 @@ static void nav_step(const NavInputs &in) {
         break;
 
     // Roll on until the wheels are over the junction, then go straight on or turn onto the branch.
-    case NavState::RollOntoJunction:
+   case NavState::RollOntoJunction:
         nav_drive(g_slow, g_slow);
-
+ 
         if (elapsed >= NAV_JUNCTION_ROLL_MS) {
             nav_stop();
-
+ 
             if (s_route_dest == 'B' || s_route_dest == 'C') {
                 s_junction_turn = (s_route_dest == 'B') ? NavDir::Right : NavDir::Left;
+                s_left_old_line = false;
+                ESP_LOGI(TAG, "Turning %s onto the branch", s_junction_turn == NavDir::Right ? "right" : "left");
                 nav_change_state(NavState::TurnAtJunction);
             } else {
                 s_junction_ignore_until_ms = now + NAV_JUNCTION_IGNORE_MS;
@@ -714,19 +651,26 @@ static void nav_step(const NavInputs &in) {
         break;
 
     // Turn onto the branch: leave the old line first, then stop when the middle sensor finds the branch
-    case NavState::TurnAtJunction:
-        nav_turn_dir(s_junction_turn);
-
-        if ((elapsed >= NAV_JUNCTION_TURN_MIN_MS && in.ir_mid) || elapsed >= NAV_JUNCTION_TURN_TIMEOUT_MS) {
-            if (!in.ir_mid) {
-                ESP_LOGW(TAG, "Branch not found while turning, carrying on");
+     case NavState::TurnAtJunction:
+        nav_turn(s_junction_turn == NavDir::Left, g_turn * NAV_JUNCTION_TURN_PCT / 100);
+ 
+        if (!in.ir_mid && !s_left_old_line) {
+            s_left_old_line = true;
+            ESP_LOGI(TAG, "Turn: the middle sensor has left the old line");
+        }
+ 
+        if ((s_left_old_line && in.ir_mid && elapsed >= NAV_JUNCTION_TURN_MIN_MS) ||
+            elapsed >= NAV_JUNCTION_TURN_TIMEOUT_MS) {
+            if (!(s_left_old_line && in.ir_mid)) {
+                ESP_LOGW(TAG, "Branch not found while turning (left old line: %d), carrying on", (int)s_left_old_line);
+            } else {
+                ESP_LOGI(TAG, "Branch found, following it");
             }
             nav_stop();
             s_junction_ignore_until_ms = now + NAV_JUNCTION_IGNORE_MS;
             nav_change_state(NavState::FollowToDestination);
         }
         break;
-
 #if NAV_OBSTACLE_AVOIDANCE
     // 4. Bypass: look left and right, choose the freer side
     case NavState::CheckSides:

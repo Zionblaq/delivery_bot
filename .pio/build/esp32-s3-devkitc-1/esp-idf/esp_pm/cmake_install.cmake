@@ -1,8 +1,8 @@
-# Install script for directory: C:/Users/Zion/.platformio/packages/framework-espidf@3.50102.240122/components/esp_pm
+# Install script for directory: /home/zion/.platformio/packages/framework-espidf@3.50102.240122/components/esp_pm
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/DeliveryBot")
+  set(CMAKE_INSTALL_PREFIX "/usr/local")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 

@@ -1,4 +1,4 @@
-set(CMAKE_C_COMPILER "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc.exe")
+set(CMAKE_C_COMPILER "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc")
 set(CMAKE_C_COMPILER_ARG1 "")
 set(CMAKE_C_COMPILER_ID "GNU")
 set(CMAKE_C_COMPILER_VERSION "12.2.0")
@@ -17,11 +17,11 @@ set(CMAKE_C_SIMULATE_VERSION "")
 
 
 
-set(CMAKE_AR "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-ar.exe")
-set(CMAKE_C_COMPILER_AR "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc-ar.exe")
-set(CMAKE_RANLIB "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-ranlib.exe")
-set(CMAKE_C_COMPILER_RANLIB "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc-ranlib.exe")
-set(CMAKE_LINKER "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-ld.exe")
+set(CMAKE_AR "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-ar")
+set(CMAKE_C_COMPILER_AR "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc-ar")
+set(CMAKE_RANLIB "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-ranlib")
+set(CMAKE_C_COMPILER_RANLIB "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc-ranlib")
+set(CMAKE_LINKER "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-ld")
 set(CMAKE_MT "")
 set(CMAKE_COMPILER_IS_GNUCC 1)
 set(CMAKE_C_COMPILER_LOADED 1)
@@ -70,7 +70,7 @@ endif()
 
 
 
-set(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/12.2.0/include;C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/12.2.0/include-fixed;C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include;C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/include")
+set(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/12.2.0/include;/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/12.2.0/include-fixed;/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include;/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/include")
 set(CMAKE_C_IMPLICIT_LINK_LIBRARIES "gcc;c;nosys;c;gcc")
-set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/12.2.0;C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc;C:/Users/Zion/.platformio/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/lib")
+set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/12.2.0;/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/lib/gcc;/home/zion/.platformio/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/lib")
 set(CMAKE_C_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES "")
