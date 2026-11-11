@@ -34,7 +34,7 @@
 
 #define LOCATION_DEBOUNCE_COUNT   3
 
-#define IR_ACTIVE_LOW  true
+#define IR_ACTIVE_LOW  false
 
 
 #define LINE_DETECT_THRESHOLD   2000
