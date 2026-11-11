@@ -1,6 +1,6 @@
-set(CMAKE_HOST_SYSTEM "Linux-7.0.0-38-generic")
+set(CMAKE_HOST_SYSTEM "Linux-7.0.0-42-generic")
 set(CMAKE_HOST_SYSTEM_NAME "Linux")
-set(CMAKE_HOST_SYSTEM_VERSION "7.0.0-38-generic")
+set(CMAKE_HOST_SYSTEM_VERSION "7.0.0-42-generic")
 set(CMAKE_HOST_SYSTEM_PROCESSOR "x86_64")
 
 include("/home/zion/.platformio/packages/framework-espidf@3.50102.240122/tools/cmake/toolchain-esp32s3.cmake")

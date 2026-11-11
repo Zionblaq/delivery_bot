@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "DeliveryBot",
-    "project_version":    "20e92a3-dirty",
+    "project_version":    "d2543ae-dirty",
     "project_path":       "/home/zion/Documents/PlatformIO/Projects/delivery_bot",
     "idf_path":           "/home/zion/.platformio/packages/framework-espidf@3.50102.240122",
     "build_dir":          "/home/zion/Documents/PlatformIO/Projects/delivery_bot/.pio/build/esp32-s3-devkitc-1",
